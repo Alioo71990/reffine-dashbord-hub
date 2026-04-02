@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useTheme, useAdmin } from './store'
 import { DashboardPage } from './pages/DashboardPage'
 import { TranslationPage } from './pages/TranslationPage'
@@ -19,7 +19,7 @@ function AppBootstrap() {
 
 export default function App() {
   return (
-    <BrowserRouter basename="/reffine-dashbord-hub">
+    <HashRouter>
       <AppBootstrap />
       <Routes>
         <Route path="/" element={<DashboardPage />} />
@@ -32,6 +32,6 @@ export default function App() {
         <Route path="/admin" element={<AdminPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   )
 }

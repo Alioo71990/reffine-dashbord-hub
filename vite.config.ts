@@ -4,7 +4,7 @@ import tailwindcss from '@tailwindcss/vite'
 
 // GitHub Pages deploys to /repo-name/ — set VITE_BASE=/repo-name/ in env
 // Netlify / custom domain: leave VITE_BASE unset (defaults to /)
-const base = process.env.VITE_BASE || '/reffine-dashbord-hub/'
+const base = process.env.VITE_BASE || '/'
 
 export default defineConfig({
   base,

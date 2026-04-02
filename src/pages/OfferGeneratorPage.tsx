@@ -431,14 +431,27 @@ async function parseDocxMulti(buffer: ArrayBuffer): Promise<Offer[]> {
     const cleanTxt = (raw: string) =>
       raw.replace(/[\u200b\u200c\u200d\u200e\u200f\u202a-\u202e\u2060-\u206f\ufeff]/g, '').trim()
 
-    // Collect paragraph texts before this table — scan up to 120 blocks back
-    // (Word docs may have many empty <w:p> elements, so 40 was too small)
+    // Collect paragraph texts before this table — also look inside preceding tables
+    // because Word templates often put URL/model year/displayed-on inside a metadata table
     const prevTexts: Array<{txt: string; lower: string}> = []
     for (let bi = mt.idx - 1; bi >= 0 && bi >= mt.idx - 120; bi--) {
-      if (blocks[bi].type !== 'p') continue
-      const raw = wq(blocks[bi].el, 't').map(t => t.textContent).join('')
-      const txt = cleanTxt(raw)
-      if (txt) prevTexts.unshift({ txt, lower: txt.toLowerCase() })
+      const block = blocks[bi]
+      if (block.type === 'p') {
+        const raw = wq(block.el, 't').map(t => t.textContent).join('')
+        const txt = cleanTxt(raw)
+        if (txt) prevTexts.unshift({ txt, lower: txt.toLowerCase() })
+      } else if (block.type === 'tbl') {
+        // Extract all paragraph text from inside this preceding table
+        const tblParas = Array.from(block.el.getElementsByTagNameNS(WNS, 'p'))
+        const tblTexts: Array<{txt: string; lower: string}> = []
+        for (const p of tblParas) {
+          const raw = Array.from(p.getElementsByTagNameNS(WNS, 't')).map(t => t.textContent).join('')
+          const txt = cleanTxt(raw)
+          if (txt) tblTexts.push({ txt, lower: txt.toLowerCase() })
+        }
+        // Insert them in forward order before the table's position
+        prevTexts.unshift(...tblTexts)
+      }
     }
 
     let market='', brand='', nameplate='', modelYear='', offerType='', displayedOn='', urlSlug=''
