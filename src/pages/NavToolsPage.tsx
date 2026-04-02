@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { TopNav } from '../components/TopNav'
+import { useTheme } from '../store'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface NavNode {
@@ -862,6 +863,8 @@ function FooterEditor() {
 // ─── Main Page ────────────────────────────────────────────────────────────
 export function NavToolsPage() {
   const [tab, setTab] = useState<'nav' | 'footer'>('nav')
+  const { theme } = useTheme()
+  const isDark = theme === 'dark'
   const TOP = 60 + 44 // nav + tab bar
 
   return (
@@ -870,7 +873,7 @@ export function NavToolsPage() {
       <div className="rf-brand-bar" style={{ position: 'fixed', top: 60, left: 0, right: 0, zIndex: 89 }} />
 
       {/* Tab bar */}
-      <div style={{ position: 'fixed', top: 63, left: 0, right: 0, height: 41, background: 'rgba(10,11,13,.97)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', padding: '0 16px', gap: 6, zIndex: 88, backdropFilter: 'blur(12px)' }}>
+      <div style={{ position: 'fixed', top: 63, left: 0, right: 0, height: 41, background: isDark ? 'rgba(10,11,13,.97)' : 'rgba(255,255,255,.97)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', padding: '0 16px', gap: 6, zIndex: 88, backdropFilter: 'blur(12px)' }}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.8"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /></svg>
         <span style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '.08em', color: 'var(--text)', marginRight: 8 }}>Navigation Tools</span>
         {(['nav', 'footer'] as const).map(t => (
