@@ -4,10 +4,10 @@ import tailwindcss from '@tailwindcss/vite'
 
 // GitHub Pages deploys to /repo-name/ — set VITE_BASE=/repo-name/ in env
 // Netlify / custom domain: leave VITE_BASE unset (defaults to /)
-const base = process.env.VITE_BASE || '/'
+const base = process.env.VITE_BASE || '/reffine-dashbord-hub/'
 
 export default defineConfig({
-base: '/reflow-mena-react/',
+  base,
   plugins: [react(), tailwindcss()],
   build: {
     outDir: 'dist',
