@@ -5,7 +5,6 @@ import { NavClock } from './NavClock'
 import { MeetingCountdown } from './MeetingCountdown'
 
 const NAV_LINKS = [
-  { to: '/', label: 'DASHBOARD' },
   { to: '/translate', label: 'TRANSLATE' },
   { to: '/translate-tool', label: 'TRANSLATE TOOL' },
   { to: '/seo', label: 'SEO' },
@@ -58,30 +57,24 @@ export function TopNav({ onDocs, onMails, currentPage }: { onDocs?: () => void; 
         zIndex: 9999, backdropFilter: 'blur(20px)', boxSizing: 'border-box', overflow: 'hidden',
         fontFamily: "'Inter', sans-serif"
       }}>
-        <NavLink to="/" style={{ display:'flex', alignItems:'center', textDecoration:'none', flexShrink:0 }}>
-          <img
-            src="https://www.reffine.com/en/_nuxt/img/reffine-logo.28b93e7.svg"
-            alt="Reffine"
-            style={{ height:28, filter: theme==='light' ? 'none' : 'brightness(0) invert(1)', transition:'filter .2s' }}
-            onError={e => {
-              const img = e.currentTarget
-              img.style.display = 'none'
-              const span = document.createElement('span')
-              span.textContent = 'REFFINE · MENA HUB'
-              span.style.cssText = 'font-size:0.82rem;font-weight:700;letter-spacing:0.12em;color:var(--text)'
-              img.parentElement?.appendChild(span)
-            }}
-          />
+        <NavLink to="/" style={{ display:'flex', flexDirection:'column', gap:1, lineHeight:1.1, textDecoration:'none', flexShrink:0, whiteSpace:'nowrap' }}>
+          <span style={{ fontSize:'0.82rem', fontWeight:700, letterSpacing:'0.12em', color:'var(--text)' }}>
+            REFFINE <span style={{ color:'var(--accent)' }}>·</span> MENA HUB
+          </span>
+          <span style={{ fontSize:'0.48rem', fontWeight:500, letterSpacing:'0.18em', color:'var(--text-3)', textTransform:'uppercase' }}>
+            Reffine JLR MENA Dashboard
+          </span>
         </NavLink>
 
-        {!isOnDashboard && (
-          <NavLink to="/" style={{ display:'flex', alignItems:'center', gap:4, textDecoration:'none', color:'var(--text-3)', fontSize:'0.62rem', fontWeight:600, letterSpacing:'.06em', padding:'4px 8px', borderRadius:5, border:'1px solid var(--border)', flexShrink:0, whiteSpace:'nowrap', transition:'all .15s' }}
-            onMouseEnter={e=>{(e.currentTarget as HTMLElement).style.color='var(--accent)';(e.currentTarget as HTMLElement).style.borderColor='var(--accent-brd)'}}
-            onMouseLeave={e=>{(e.currentTarget as HTMLElement).style.color='var(--text-3)';(e.currentTarget as HTMLElement).style.borderColor='var(--border)'}}>
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg>
-            DASHBOARD
-          </NavLink>
-        )}
+        <div className="nav-divider" />
+
+        {/* Dashboard button - always visible, prominent position */}
+        <NavLink to="/" style={{ display:'flex', alignItems:'center', textDecoration:'none', color:'var(--text)', fontSize:'0.75rem', fontWeight:700, letterSpacing:'0.08em', padding:'6px 12px', borderRadius:6, border:'1px solid var(--border)', flexShrink:0, whiteSpace:'nowrap', transition:'all .15s', background: isOnDashboard ? 'var(--accent-dim)' : 'transparent' }}
+          onMouseEnter={e=>{(e.currentTarget as HTMLElement).style.borderColor='var(--accent-brd)';(e.currentTarget as HTMLElement).style.color='var(--accent)'}}
+          onMouseLeave={e=>{(e.currentTarget as HTMLElement).style.borderColor='var(--border)';(e.currentTarget as HTMLElement).style.color='var(--text)'}}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: 6 }}><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          DASHBOARD
+        </NavLink>
 
         <div className="nav-divider" />
 
@@ -138,6 +131,12 @@ export function TopNav({ onDocs, onMails, currentPage }: { onDocs?: () => void; 
           borderBottom:'1px solid var(--border)', padding:'0.75rem 1.5rem 1rem',
           display:'flex', flexDirection:'column', gap:2, backdropFilter:'blur(20px)'
         }} onClick={() => setDrawerOpen(false)}>
+          {/* Dashboard link at top of mobile drawer */}
+          <NavLink to="/" className={({isActive})=>`rf-navlink${isActive?' active':''}`}
+            style={{ padding:'0.65rem 0.75rem', fontSize:'0.78rem', fontWeight:700, color: isOnDashboard ? 'var(--accent)' : 'var(--text)' }}>
+            📊 DASHBOARD
+          </NavLink>
+          <div style={{ height:8 }} />
           {NAV_LINKS.map(l => (
             <NavLink key={l.to} to={l.to} end={l.to==='/'} className={({isActive})=>`rf-navlink${isActive?' active':''}`}
               style={{ padding:'0.65rem 0.75rem', fontSize:'0.78rem' }}>

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { NavLink, useNavigate } from 'react-router-dom'
+import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useTheme, useAuth } from '../store'
 import { NavClock } from './NavClock'
 import { MeetingCountdown } from './MeetingCountdown'
@@ -9,7 +9,6 @@ const MEETING_DAILY_LINK = 'https://meet.google.com/pgy-nkum-gic'
 const MEETING_OFFERS_LINK = 'https://teams.microsoft.com/l/meetup-join/19%3ameeting_NWFjNDgyMGUtOTYyMy00ZjE3LWJmYzItOTk4NjBhNGEyYzkz%40thread.v2/0?context=%7b%22Tid%22%3a%2241eb501a-f671-4ce0-a5bf-b64168c3705f%22%2c%22Oid%22%3a%222ca169c9-6138-482a-8d04-0a07b414d160%22%7d'
 
 const NAV_LINKS = [
-  { to: '/', label: 'Dashboard' },
   { to: '/translate', label: 'Translate' },
   { to: '/translate-tool', label: 'Translate Tool' },
   { to: '/seo', label: 'SEO' },
@@ -21,6 +20,8 @@ export function TopNav({ onDocs, onMails }: { onDocs?: () => void; onMails?: () 
   const { toggleTheme, theme } = useTheme()
   const { user, logout } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+  const isOnDashboard = location.pathname === '/'
   const [drawerOpen, setDrawerOpen] = useState(false)
 
   function handleLogout() {
@@ -47,6 +48,16 @@ export function TopNav({ onDocs, onMails }: { onDocs?: () => void; onMails?: () 
           <span style={{ fontSize:'0.48rem', fontWeight:500, letterSpacing:'0.18em', color:'var(--text-3)', textTransform:'uppercase' }}>
             Reffine JLR MENA Dashboard
           </span>
+        </NavLink>
+
+        <div className="nav-divider" />
+
+        {/* Dashboard button - always visible, prominent position */}
+        <NavLink to="/" style={{ display:'flex', alignItems:'center', textDecoration:'none', color:'var(--text)', fontSize:'0.75rem', fontWeight:700, letterSpacing:'0.08em', padding:'6px 12px', borderRadius:6, border:'1px solid var(--border)', flexShrink:0, whiteSpace:'nowrap', transition:'all .15s', background: isOnDashboard ? 'var(--accent-dim)' : 'transparent' }}
+          onMouseEnter={e=>{(e.currentTarget as HTMLElement).style.borderColor='var(--accent-brd)';(e.currentTarget as HTMLElement).style.color='var(--accent)'}}
+          onMouseLeave={e=>{(e.currentTarget as HTMLElement).style.borderColor='var(--border)';(e.currentTarget as HTMLElement).style.color='var(--text)'}}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: 6 }}><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          DASHBOARD
         </NavLink>
 
         <div className="nav-divider" />
@@ -110,6 +121,12 @@ export function TopNav({ onDocs, onMails }: { onDocs?: () => void; onMails?: () 
 
       {/* Mobile drawer */}
       <div className={`mobile-drawer${drawerOpen ? ' open' : ''}`}>
+        {/* Dashboard link at top of mobile drawer */}
+        <NavLink to="/" className={({ isActive }) => `drawer-link${isActive ? ' active' : ''}`}
+          onClick={() => setDrawerOpen(false)}
+          style={{ fontWeight: 700, color: isOnDashboard ? 'var(--accent)' : 'var(--text)' }}>
+          📊 DASHBOARD
+        </NavLink>
         {NAV_LINKS.map(l => (
           <NavLink key={l.to} to={l.to} end={l.to === '/'} className={({ isActive }) => `drawer-link${isActive ? ' active' : ''}`}
             onClick={() => setDrawerOpen(false)}>
