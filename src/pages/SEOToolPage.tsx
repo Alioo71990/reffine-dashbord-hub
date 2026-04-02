@@ -467,11 +467,34 @@ function DetailPanel({row,onClose,onUpdate,beginnerMode}:{row:RowIssue;onClose:(
 
 // ─── Collapsible Guide ────────────────────────────────────────────────────────
 function Guide({type, beginnerMode}:{type:ReportType;beginnerMode:boolean}) {
+  const { theme } = useTheme()
+  const isDark = theme === 'dark'
   const [openWhat, setOpenWhat] = useState(false)
   const [openPlay, setOpenPlay] = useState(false)
   const [openFaq, setOpenFaq] = useState(false)
   const meta = REPORT_META[type]
   const faqs = WHAT_IS[type]
+  const guideColors = isDark ? {
+    border: 'rgba(255,255,255,.08)',
+    bg: 'rgba(255,255,255,.03)',
+    text: 'rgba(255,255,255,.8)',
+    text2: 'rgba(255,255,255,.75)',
+    text3: 'rgba(255,255,255,.65)',
+    text4: 'rgba(255,255,255,.55)',
+    border2: 'rgba(255,255,255,.07)',
+    border3: 'rgba(255,255,255,.06)',
+    bg2: 'rgba(255,255,255,.04)',
+  } : {
+    border: 'var(--border)',
+    bg: 'var(--surface-2)',
+    text: 'var(--text-2)',
+    text2: 'var(--text-2)',
+    text3: 'var(--text-3)',
+    text4: 'var(--text-3)',
+    border2: 'var(--border)',
+    border3: 'var(--border)',
+    bg2: 'var(--surface-3)',
+  }
 
   const playbooks: Record<ReportType,{step:string;title:string;desc:string;priority:'CRITICAL'|'HIGH'|'MEDIUM'|'LOW'}[]> = {
     '404': [
@@ -506,27 +529,27 @@ function Guide({type, beginnerMode}:{type:ReportType;beginnerMode:boolean}) {
   )
 
   const Section = ({open, onToggle, label, children}:{open:boolean;onToggle:()=>void;label:string;children:React.ReactNode}) => (
-    <div style={{border:'1px solid rgba(255,255,255,.08)',borderRadius:10,overflow:'hidden',marginBottom:10}}>
-      <button onClick={onToggle} style={{width:'100%',display:'flex',alignItems:'center',gap:10,padding:'12px 16px',background:'rgba(255,255,255,.03)',border:'none',cursor:'pointer',color:'rgba(255,255,255,.8)',fontFamily:'inherit',fontSize:'0.78rem',fontWeight:600,letterSpacing:'.02em',textAlign:'left'}}>
+    <div style={{border:`1px solid ${guideColors.border}`,borderRadius:10,overflow:'hidden',marginBottom:10}}>
+      <button onClick={onToggle} style={{width:'100%',display:'flex',alignItems:'center',gap:10,padding:'12px 16px',background:guideColors.bg,border:'none',cursor:'pointer',color:guideColors.text,fontFamily:'inherit',fontSize:'0.78rem',fontWeight:600,letterSpacing:'.02em',textAlign:'left'}}>
         <span style={{flex:1}}>{label}</span>
         <Chevron open={open}/>
       </button>
-      {open && <div style={{padding:'14px 16px',borderTop:'1px solid rgba(255,255,255,.06)'}}>{children}</div>}
+      {open && <div style={{padding:'14px 16px',borderTop:`1px solid ${guideColors.border3}`}}>{children}</div>}
     </div>
   )
 
   return (
     <div style={{marginBottom:16}}>
       <Section open={openWhat} onToggle={()=>setOpenWhat(x=>!x)} label={`📖 What this report means — ${meta.tagline}`}>
-        <p style={{fontSize:'0.8rem',color:'rgba(255,255,255,.75)',lineHeight:1.7,margin:'0 0 12px'}}>{meta.tagline}. {beginnerMode ? 'This guide will help you understand what each issue means, why it matters, and exactly what to do about it.' : 'Use the priority engine below to decide what to fix first.'}</p>
+        <p style={{fontSize:'0.8rem',color:guideColors.text2,lineHeight:1.7,margin:'0 0 12px'}}>{meta.tagline}. {beginnerMode ? 'This guide will help you understand what each issue means, why it matters, and exactly what to do about it.' : 'Use the priority engine below to decide what to fix first.'}</p>
         {faqs.length > 0 && (
           <div style={{display:'flex',flexDirection:'column',gap:8}}>
             {faqs.map(({q,a}) => (
-              <details key={q} style={{background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.07)',borderRadius:7,padding:'10px 12px'}}>
-                <summary style={{fontSize:'0.76rem',fontWeight:600,color:'rgba(255,255,255,.85)',cursor:'pointer',listStyle:'none',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-                  {q} <span style={{color:'rgba(255,255,255,.3)',fontSize:12}}>▼</span>
+              <details key={q} style={{background:guideColors.bg2,border:`1px solid ${guideColors.border2}`,borderRadius:7,padding:'10px 12px'}}>
+                <summary style={{fontSize:'0.76rem',fontWeight:600,color:guideColors.text,cursor:'pointer',listStyle:'none',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                  {q} <span style={{color:guideColors.text3,fontSize:12}}>▼</span>
                 </summary>
-                <p style={{margin:'10px 0 0',fontSize:'0.76rem',color:'rgba(255,255,255,.65)',lineHeight:1.65}}>{a}</p>
+                <p style={{margin:'10px 0 0',fontSize:'0.76rem',color:guideColors.text3,lineHeight:1.65}}>{a}</p>
               </details>
             ))}
           </div>
@@ -536,13 +559,13 @@ function Guide({type, beginnerMode}:{type:ReportType;beginnerMode:boolean}) {
       <Section open={openPlay} onToggle={()=>setOpenPlay(x=>!x)} label="📋 Fix Playbook — Where to start">
         <div style={{display:'flex',flexDirection:'column',gap:8}}>
           {steps.map(s => (
-            <div key={s.step} style={{display:'flex',gap:12,padding:'10px 12px',background:'rgba(255,255,255,.03)',border:'1px solid rgba(255,255,255,.06)',borderRadius:8}}>
+            <div key={s.step} style={{display:'flex',gap:12,padding:'10px 12px',background:guideColors.bg,border:`1px solid ${guideColors.border3}`,borderRadius:8}}>
               <div style={{width:24,height:24,borderRadius:'50%',background:PRIORITY_META[s.priority].bg,border:`1px solid ${PRIORITY_META[s.priority].color}44`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'0.65rem',fontWeight:700,color:PRIORITY_META[s.priority].color,flexShrink:0}}>{s.step}</div>
               <div>
-                <div style={{fontSize:'0.76rem',fontWeight:700,color:'rgba(255,255,255,.9)',marginBottom:3,display:'flex',alignItems:'center',gap:6}}>
+                <div style={{fontSize:'0.76rem',fontWeight:700,color:guideColors.text,marginBottom:3,display:'flex',alignItems:'center',gap:6}}>
                   {s.title} <PBadge p={s.priority}/>
                 </div>
-                {beginnerMode && <div style={{fontSize:'0.72rem',color:'rgba(255,255,255,.55)',lineHeight:1.6}}>{s.desc}</div>}
+                {beginnerMode && <div style={{fontSize:'0.72rem',color:guideColors.text4,lineHeight:1.6}}>{s.desc}</div>}
               </div>
             </div>
           ))}
@@ -553,9 +576,9 @@ function Guide({type, beginnerMode}:{type:ReportType;beginnerMode:boolean}) {
         <Section open={openFaq} onToggle={()=>setOpenFaq(x=>!x)} label="❓ SEO Terms Explained">
           <div style={{display:'flex',flexDirection:'column',gap:6}}>
             {faqs.map(({q,a}) => (
-              <div key={q} style={{padding:'10px 12px',background:'rgba(255,255,255,.03)',borderRadius:7,border:'1px solid rgba(255,255,255,.06)'}}>
-                <div style={{fontSize:'0.72rem',fontWeight:700,color:'rgba(255,255,255,.8)',marginBottom:4}}>{q}</div>
-                <div style={{fontSize:'0.7rem',color:'rgba(255,255,255,.55)',lineHeight:1.6}}>{a}</div>
+              <div key={q} style={{padding:'10px 12px',background:guideColors.bg,borderRadius:7,border:`1px solid ${guideColors.border3}`}}>
+                <div style={{fontSize:'0.72rem',fontWeight:700,color:guideColors.text,marginBottom:4}}>{q}</div>
+                <div style={{fontSize:'0.7rem',color:guideColors.text4,lineHeight:1.6}}>{a}</div>
               </div>
             ))}
           </div>
@@ -827,9 +850,9 @@ export function SEOToolPage() {
               onDragLeave={()=>setDragging(false)}
               onDrop={handleDrop}>
               <div style={{maxWidth:520,textAlign:'center'}}>
-                <div style={{width:72,height:72,borderRadius:16,background:'rgba(233,30,140,.1)',border:'2px dashed rgba(233,30,140,.3)',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 20px',fontSize:30,transition:'all .2s',boxShadow: dragging?'0 0 0 4px rgba(233,30,140,.2)':'none'}}>📊</div>
-                <h2 style={{fontSize:'1.3rem',fontWeight:800,color:'#f1f5f9',letterSpacing:'.03em',marginBottom:10}}>Ahrefs SEO Report Fixer</h2>
-                <p style={{fontSize:'0.82rem',color:'rgba(255,255,255,.55)',lineHeight:1.7,marginBottom:24}}>Upload a CSV export from Ahrefs and instantly understand every issue, what it means, and exactly how to fix it — even if you're not deeply technical.</p>
+                <div style={{width:72,height:72,borderRadius:16,background:isDark?'rgba(233,30,140,.1)':'rgba(233,30,140,.08)',border:`2px dashed ${isDark?'rgba(233,30,140,.3)':'rgba(233,30,140,.25)'}`,display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 20px',fontSize:30,transition:'all .2s',boxShadow: dragging?'0 0 0 4px rgba(233,30,140,.2)':'none'}}>📊</div>
+                <h2 style={{fontSize:'1.3rem',fontWeight:800,color:sc.text,letterSpacing:'.03em',marginBottom:10}}>Ahrefs SEO Report Fixer</h2>
+                <p style={{fontSize:'0.82rem',color:sc.text2,lineHeight:1.7,marginBottom:24}}>Upload a CSV export from Ahrefs and instantly understand every issue, what it means, and exactly how to fix it — even if you're not deeply technical.</p>
                 <div style={{display:'flex',gap:10,justifyContent:'center',marginBottom:24}}>
                   <button onClick={()=>fileRef.current?.click()} style={{background:'var(--accent-grad)',border:'none',borderRadius:8,color:'#fff',fontFamily:'inherit',fontSize:'0.76rem',fontWeight:700,padding:'10px 22px',cursor:'pointer',boxShadow:'0 2px 14px rgba(233,30,140,.3)'}}>Upload CSV File</button>
                 </div>
@@ -837,10 +860,10 @@ export function SEOToolPage() {
                   {(['404','broken','chain','hreflang'] as ReportType[]).map(t=>{
                     const m = REPORT_META[t]
                     return (
-                      <div key={t} style={{padding:'12px',background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.08)',borderRadius:8,textAlign:'left'}}>
+                      <div key={t} style={{padding:'12px',background:isDark?'rgba(255,255,255,.04)':'rgba(0,0,0,.03)',border:`1px solid ${isDark?'rgba(255,255,255,.08)':'rgba(0,0,0,.08)'}`,borderRadius:8,textAlign:'left'}}>
                         <div style={{fontSize:'1.2rem',marginBottom:5}}>{m.icon}</div>
-                        <div style={{fontSize:'0.72rem',fontWeight:700,color:'rgba(255,255,255,.85)',marginBottom:3}}>{m.title}</div>
-                        <div style={{fontSize:'0.65rem',color:'rgba(255,255,255,.4)',lineHeight:1.5}}>{m.tagline}</div>
+                        <div style={{fontSize:'0.72rem',fontWeight:700,color:isDark?'rgba(255,255,255,.85)':'rgba(0,0,0,.85)',marginBottom:3}}>{m.title}</div>
+                        <div style={{fontSize:'0.65rem',color:isDark?'rgba(255,255,255,.4)':'rgba(0,0,0,.5)',lineHeight:1.5}}>{m.tagline}</div>
                       </div>
                     )
                   })}
@@ -971,10 +994,10 @@ export function SEOToolPage() {
                         <div><FBadge f={row.fixType} conf={row.confidence}/></div>
 
                         {/* Inlinks */}
-                        <div style={{fontSize:'0.78rem',fontWeight:700,color: row.inlinks>=50?'#ef4444': row.inlinks>=10?'#f97316':'rgba(255,255,255,.5)',textAlign:'center'}}>{row.inlinks || '—'}</div>
+                        <div style={{fontSize:'0.78rem',fontWeight:700,color: row.inlinks>=50?'#ef4444': row.inlinks>=10?'#f97316':sc.text3,textAlign:'center'}}>{row.inlinks || '—'}</div>
 
                         {/* Done */}
-                        <div style={{textAlign:'center',fontSize:'0.7rem',color:row.fixed?'#10b981':'rgba(255,255,255,.2)'}}>
+                        <div style={{textAlign:'center',fontSize:'0.7rem',color:row.fixed?'#10b981':isDark?'rgba(255,255,255,.2)':sc.textMuted}}>
                           {row.fixed ? '✓' : ''}
                         </div>
                       </div>
