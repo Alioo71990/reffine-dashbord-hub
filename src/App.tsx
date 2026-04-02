@@ -19,7 +19,7 @@ function AppBootstrap() {
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/reffine-dashbord-hub">
       <AppBootstrap />
       <Routes>
         <Route path="/" element={<DashboardPage />} />
