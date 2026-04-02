@@ -43,8 +43,10 @@ function CountryCard({ country, brand, mode }: { country: string; brand: Brand; 
             <a key={lang} href={href} target="_blank" rel="noreferrer" className="link-badge"
               onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.background = BRAND_HOVER[brand]; el.style.color = BRAND_COLORS[brand]; el.style.borderColor = BRAND_COLORS[brand]+'44' }}
               onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.background=''; el.style.color=''; el.style.borderColor='' }}>
-              {mode === 'cms' && <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor" style={{marginRight:2,opacity:.7,flexShrink:0}}><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>}
-              {lang}
+              <span style={{ display:'flex', alignItems:'center', gap:3 }}>
+                {mode === 'cms' && <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" style={{ opacity:.8, flexShrink:0 }}><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>}
+                {lang}
+              </span>
             </a>
           )
         })}
