@@ -113,6 +113,7 @@ function AdminPageInner() {
   const [sbKey, setSbKey]     = useState(config.sbKey)
   const [groqKey, setGroqKey] = useState(config.groqKey)
   const [csvUrl, setCsvUrl]   = useState(config.tasksCsvUrl)
+  const [offersStatusUrl, setOffersStatusUrl] = useState(config.offersStatusUrl)
   const [showSbKey, setShowSbKey]   = useState(false)
   const [showGroq, setShowGroq]     = useState(false)
   const [msg, setMsg] = useState<Record<string, string>>({})
@@ -127,7 +128,7 @@ function AdminPageInner() {
     setTimeout(() => setMsg(prev => ({ ...prev, [k]: '' })), 4000)
   }
 
-  useEffect(() => { setSbUrl(config.sbUrl); setSbKey(config.sbKey); setGroqKey(config.groqKey); setCsvUrl(config.tasksCsvUrl) }, [config])
+  useEffect(() => { setSbUrl(config.sbUrl); setSbKey(config.sbKey); setGroqKey(config.groqKey); setCsvUrl(config.tasksCsvUrl); setOffersStatusUrl(config.offersStatusUrl) }, [config])
 
   return (
     <div style={{ minHeight:'100vh', background:'var(--bg)', color:'var(--text)', display:'flex', flexDirection:'column' }}>
@@ -191,6 +192,22 @@ function AdminPageInner() {
             }}
             onReset={() => { setCsvUrl(''); saveConfig({ tasksCsvUrl: '' }); showMsg('csv','✓ Reset') }}
             msg={msg.csv||''} />
+        </SectionCard>
+
+        {/* Offers Status CSV */}
+        <SectionCard title="Offers Status CSV" icon="📊" desc="CSV source for the Offers Status viewer tab">
+          <Field label="Google Sheets CSV URL" hint="Published Google Sheet — must end with output=csv">
+            <input type="text" value={offersStatusUrl} onChange={e => setOffersStatusUrl(e.target.value)} style={inputStyle}
+              placeholder="https://docs.google.com/spreadsheets/d/e/.../pub?output=csv" />
+          </Field>
+          <FooterBar
+            onSave={() => {
+              const v = offersStatusUrl.trim()
+              if (v && !v.startsWith('http')) { showMsg('offers','✗ Must be a valid URL'); return }
+              saveConfig({ offersStatusUrl: v }); addLog('Updated Offers Status CSV URL'); showMsg('offers','✓ Saved')
+            }}
+            onReset={() => { setOffersStatusUrl(''); saveConfig({ offersStatusUrl: '' }); showMsg('offers','✓ Reset') }}
+            msg={msg.offers||''} />
         </SectionCard>
 
         {/* Meeting Schedule */}
