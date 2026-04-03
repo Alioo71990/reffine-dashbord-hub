@@ -58,10 +58,10 @@ export function TopNav({ onDocs, onMails, currentPage }: { onDocs?: () => void; 
       }}>
         <NavLink to="/" style={{ display:'flex', flexDirection:'column', gap:1, lineHeight:1.1, textDecoration:'none', flexShrink:0, whiteSpace:'nowrap' }}>
           <div style={{ display:'flex', alignItems:'center', gap:'0.5rem' }}>
-            <img 
-              src="https://www.reffine.com/en/_nuxt/img/reffine-logo.28b93e7.svg" 
-              alt="Reffine" 
-              style={{ height:24, width:'auto', display:'block' }} 
+            <img
+              src="https://www.reffine.com/en/_nuxt/img/reffine-logo.28b93e7.svg"
+              alt="Reffine"
+              style={{ height:24, width:'auto', display:'block', filter: theme==='dark' ? 'brightness(0) invert(1)' : 'none' }}
             />
             <span style={{ fontSize:'0.82rem', fontWeight:700, letterSpacing:'0.12em', color:'var(--text)' }}>
               MENA HUB
