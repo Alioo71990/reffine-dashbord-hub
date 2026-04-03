@@ -36,7 +36,8 @@ export interface AdminConfig {
   sbKey: string
   groqKey: string
   tasksCsvUrl: string
-  offersStatusUrl: string
+  offersStatusUrlJag: string
+  offersStatusUrlLr: string
   meetings: MeetingConfig
 }
 
@@ -58,7 +59,8 @@ const DEFAULT_CONFIG: AdminConfig = {
   sbKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlqb2ZqcW5wYnhmZ3Z5Z2RqanZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3MDE3MjIsImV4cCI6MjA4OTI3NzcyMn0.TOIhsn9OB614ZlYdRYRAulDZOzxcQMkaPGaGBGbQ9rc',
   groqKey: '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',
   tasksCsvUrl: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vT37HhHJ0CJ3SqWg8WV3Wa9HRAqxiRyYyuv5uwOqFRXaIzKDNID_gDMG8qTvkEAXVK9WveXpAoI9YKI/pub?gid=110196541&single=true&output=csv',
-  offersStatusUrl: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQL1YZ28A08mkRUpCQRvyp9aUDeNwC9tVCtZKH3Benr7Vepik7z8LzdV3qKKMeJiJP_Yfhnep2ynnLq/pub?output=csv',
+  offersStatusUrlJag: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQL1YZ28A08mkRUpCQRvyp9aUDeNwC9tVCtZKH3Benr7Vepik7z8LzdV3qKKMeJiJP_Yfhnep2ynnLq/pub?gid=0&single=true&output=csv',
+  offersStatusUrlLr: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQL1YZ28A08mkRUpCQRvyp9aUDeNwC9tVCtZKH3Benr7Vepik7z8LzdV3qKKMeJiJP_Yfhnep2ynnLq/pub?gid=1&single=true&output=csv',
   meetings: DEFAULT_MEETINGS
 }
 

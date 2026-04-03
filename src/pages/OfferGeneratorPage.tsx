@@ -692,10 +692,11 @@ function LiveOfferPreview({ d, nameplate, isRTL }: { d: LangData; nameplate: str
 }
 
 // ─── OfferCard ────────────────────────────────────────────────────────────────
-function OfferCard({ offer, idx, onChange, onRemove }: {
+function OfferCard({ offer, idx, onChange, onRemove, idLoading }: {
   offer: Offer; idx: number
   onChange: (id: string, patch: Partial<Offer>) => void
   onRemove: (id: string) => void
+  idLoading: boolean
 }) {
   const [activeLang, setActiveLang] = useState<'EN'|'AR'|'FR'>('EN')
   const [showUrlGen, setShowUrlGen] = useState(false)
@@ -751,7 +752,7 @@ function OfferCard({ offer, idx, onChange, onRemove }: {
             </div>
             <div>
               <div style={{ fontSize:'0.5rem', fontWeight:700, letterSpacing:'.14em', textTransform:'uppercase', color:'var(--text-3)', marginBottom:3 }}>Starting ID</div>
-              <input style={iS} value={offer.startId} onChange={e=>set({startId:e.target.value})} placeholder="1005" />
+              <input style={iS} value={offer.startId} onChange={e=>set({startId:e.target.value})} placeholder={idLoading ? 'Loading…' : '1005'} />
             </div>
             <div>
               <div style={{ fontSize:'0.5rem', fontWeight:700, letterSpacing:'.14em', textTransform:'uppercase', color:'var(--text-3)', marginBottom:3 }}>Start Date</div>
@@ -844,13 +845,34 @@ function OfferCard({ offer, idx, onChange, onRemove }: {
 
 // ─── Offer Studio (original page, renamed) ────────────────────────────────────
 function OfferStudio() {
+  const { config } = useAdmin()
   const [offers, setOffers] = useState<Offer[]>([])
   const [fileName, setFileName] = useState('')
   const [log, setLog] = useState('')
   const [logType, setLogType] = useState<'ok'|'err'|'info'>('info')
   const [globalStart, setGlobalStart] = useState('')
   const [globalEnd, setGlobalEnd] = useState('')
+  const [nextId, setNextId] = useState(1005)
+  const [idLoading, setIdLoading] = useState(true)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  // Fetch next offer ID from LR CSV on mount
+  useEffect(() => {
+    async function fetchNextOfferId() {
+      try {
+        const raw = await fetchWithProxy(config.offersStatusUrlLr)
+        const parsed = parseCSV(raw)
+        if (parsed && parsed.length > 0) {
+          const firstLine = parsed[0]
+          // Cell I1 is index 8 (9th column)
+          const val = parseInt(String(firstLine[8] || '').replace(/"/g, '').trim(), 10)
+          if (!isNaN(val) && val > 0) { setNextId(val + 1); return }
+        }
+      } catch {}
+      setNextId(1005)
+    }
+    fetchNextOfferId().finally(() => setIdLoading(false))
+  }, [config.offersStatusUrlLr])
 
   function setL(m: string, t: 'ok'|'err'|'info') { setLog(m); setLogType(t) }
 
@@ -862,7 +884,14 @@ function OfferStudio() {
       const buf = await f.arrayBuffer()
       const parsed = await parseDocxMulti(buf)
       if (!parsed.length) { setL('No offer tables found in this document.','err'); return }
-      setOffers(parsed.map(o => ({ ...o, startDate: globalStart, endDate: globalEnd })))
+      // Assign sequential startIds starting from nextId
+      let currentId = nextId
+      setOffers(parsed.map(o => {
+        const offer = { ...o, startDate: globalStart, endDate: globalEnd, startId: String(currentId) }
+        currentId++
+        return offer
+      }))
+      setNextId(currentId) // Update nextId for subsequent parses
       setL(`✓ Parsed ${parsed.length} offer${parsed.length>1?'s':''} — review each card below then Export CSV.`, 'ok')
     } catch (e: unknown) { setL('Error: '+((e as Error).message||String(e)), 'err') }
   }
@@ -933,7 +962,7 @@ function OfferStudio() {
           </div>
         )}
         {offers.map((offer, i) => (
-          <OfferCard key={offer.id} offer={offer} idx={i} onChange={updateOffer} onRemove={removeOffer} />
+          <OfferCard key={offer.id} offer={offer} idx={i} onChange={updateOffer} onRemove={removeOffer} idLoading={idLoading} />
         ))}
       </div>
       <Footer />
@@ -987,6 +1016,7 @@ function isPastToday(d: string): boolean {
 
 function OfferStatusTab() {
   const { config } = useAdmin()
+  const [sheet, setSheet] = useState<'jag' | 'lr'>('jag')
   const [rows, setRows] = useState<OfferStatusRow[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -999,7 +1029,13 @@ function OfferStatusTab() {
   const [sortDir, setSortDir] = useState<1|-1>(1)
   const [visibleCount, setVisibleCount] = useState(50)
 
-  const csvUrl = config.offersStatusUrl
+  const csvUrl = sheet === 'jag' ? config.offersStatusUrlJag : config.offersStatusUrlLr
+
+  function handleSheetChange(s: 'jag' | 'lr') {
+    setSheet(s)
+    setSearch(''); setFStatus(''); setFMarket(''); setFLang(''); setFType('')
+    setSortCol(''); setSortDir(1); setVisibleCount(50)
+  }
 
   async function load() {
     if (!csvUrl) return
@@ -1087,6 +1123,19 @@ function OfferStatusTab() {
       <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap', paddingBottom:8, borderBottom:'1px solid var(--border)', marginBottom:8, flexShrink:0 }}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>
         <span style={{ fontSize:'.72rem', fontWeight:700, letterSpacing:'.1em', textTransform:'uppercase', color:'var(--text)' }}>Offers Status</span>
+        {/* Sheet selector pills */}
+        {(['jag','lr'] as const).map(s => (
+          <button key={s} onClick={() => handleSheetChange(s)}
+            style={{
+              padding: '4px 14px', borderRadius: 100, border: '1px solid',
+              cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.68rem', fontWeight: 700,
+              background: sheet === s ? 'var(--accent-dim)' : 'transparent',
+              borderColor: sheet === s ? 'var(--accent-brd)' : 'var(--border)',
+              color: sheet === s ? 'var(--accent)' : 'var(--text-2)'
+            }}>
+            {s === 'jag' ? '🐆 Offers JAG' : '🏔 Offers LR'}
+          </button>
+        ))}
         {loading && <span style={{ color:'var(--orange)', fontSize:'.58rem', display:'flex', alignItems:'center', gap:4 }}>
           <svg className="spinner" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M3 12a9 9 0 1 0 9-9A9.75 9.75 0 0 0 3.6 5.1L3 8"/><path d="M3 3v5h5"/></svg>
           Loading…</span>}

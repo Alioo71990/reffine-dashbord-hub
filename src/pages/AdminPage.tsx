@@ -113,7 +113,8 @@ function AdminPageInner() {
   const [sbKey, setSbKey]     = useState(config.sbKey)
   const [groqKey, setGroqKey] = useState(config.groqKey)
   const [csvUrl, setCsvUrl]   = useState(config.tasksCsvUrl)
-  const [offersStatusUrl, setOffersStatusUrl] = useState(config.offersStatusUrl)
+  const [offersStatusUrlJag, setOffersStatusUrlJag] = useState(config.offersStatusUrlJag)
+  const [offersStatusUrlLr, setOffersStatusUrlLr] = useState(config.offersStatusUrlLr)
   const [showSbKey, setShowSbKey]   = useState(false)
   const [showGroq, setShowGroq]     = useState(false)
   const [msg, setMsg] = useState<Record<string, string>>({})
@@ -128,7 +129,7 @@ function AdminPageInner() {
     setTimeout(() => setMsg(prev => ({ ...prev, [k]: '' })), 4000)
   }
 
-  useEffect(() => { setSbUrl(config.sbUrl); setSbKey(config.sbKey); setGroqKey(config.groqKey); setCsvUrl(config.tasksCsvUrl); setOffersStatusUrl(config.offersStatusUrl) }, [config])
+  useEffect(() => { setSbUrl(config.sbUrl); setSbKey(config.sbKey); setGroqKey(config.groqKey); setCsvUrl(config.tasksCsvUrl); setOffersStatusUrlJag(config.offersStatusUrlJag); setOffersStatusUrlLr(config.offersStatusUrlLr) }, [config])
 
   return (
     <div style={{ minHeight:'100vh', background:'var(--bg)', color:'var(--text)', display:'flex', flexDirection:'column' }}>
@@ -195,18 +196,24 @@ function AdminPageInner() {
         </SectionCard>
 
         {/* Offers Status CSV */}
-        <SectionCard title="Offers Status CSV" icon="📊" desc="CSV source for the Offers Status viewer tab">
-          <Field label="Google Sheets CSV URL" hint="Published Google Sheet — must end with output=csv">
-            <input type="text" value={offersStatusUrl} onChange={e => setOffersStatusUrl(e.target.value)} style={inputStyle}
-              placeholder="https://docs.google.com/spreadsheets/d/e/.../pub?output=csv" />
+        <SectionCard title="Offers Status CSV" icon="📊" desc="CSV sources for the Offers Status viewer tab (JAG and LR sheets)">
+          <Field label="Offers JAG CSV URL" hint="Published Google Sheet — must end with output=csv">
+            <input type="text" value={offersStatusUrlJag} onChange={e => setOffersStatusUrlJag(e.target.value)} style={inputStyle}
+              placeholder="https://docs.google.com/spreadsheets/d/e/.../pub?gid=0&single=true&output=csv" />
+          </Field>
+          <Field label="Offers LR CSV URL" hint="Published Google Sheet — must end with output=csv">
+            <input type="text" value={offersStatusUrlLr} onChange={e => setOffersStatusUrlLr(e.target.value)} style={inputStyle}
+              placeholder="https://docs.google.com/spreadsheets/d/e/.../pub?gid=1&single=true&output=csv" />
           </Field>
           <FooterBar
             onSave={() => {
-              const v = offersStatusUrl.trim()
-              if (v && !v.startsWith('http')) { showMsg('offers','✗ Must be a valid URL'); return }
-              saveConfig({ offersStatusUrl: v }); addLog('Updated Offers Status CSV URL'); showMsg('offers','✓ Saved')
+              const jag = offersStatusUrlJag.trim()
+              const lr = offersStatusUrlLr.trim()
+              if (jag && !jag.startsWith('http')) { showMsg('offers','✗ JAG URL must be valid'); return }
+              if (lr && !lr.startsWith('http')) { showMsg('offers','✗ LR URL must be valid'); return }
+              saveConfig({ offersStatusUrlJag: jag, offersStatusUrlLr: lr }); addLog('Updated Offers Status CSV URLs'); showMsg('offers','✓ Saved')
             }}
-            onReset={() => { setOffersStatusUrl(''); saveConfig({ offersStatusUrl: '' }); showMsg('offers','✓ Reset') }}
+            onReset={() => { setOffersStatusUrlJag(''); setOffersStatusUrlLr(''); saveConfig({ offersStatusUrlJag: '', offersStatusUrlLr: '' }); showMsg('offers','✓ Reset') }}
             msg={msg.offers||''} />
         </SectionCard>
 
