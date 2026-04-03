@@ -61,15 +61,13 @@ export function TopNav({ onDocs, onMails, currentPage }: { onDocs?: () => void; 
             <img
               src="https://www.reffine.com/en/_nuxt/img/reffine-logo.28b93e7.svg"
               alt="Reffine"
-              style={{ height:24, width:'auto', display:'block', filter: theme==='dark' ? 'brightness(0) invert(1)' : 'none' }}
+              className="reffine-logo"
+              style={{ height:24, width:'auto', display:'block' }}
             />
-            <span style={{ fontSize:'0.82rem', fontWeight:700, letterSpacing:'0.12em', color:'var(--text)' }}>
-              MENA HUB
+            <span style={{ fontSize:'0.48rem', fontWeight:500, letterSpacing:'0.18em', color:'var(--text-3)', textTransform:'uppercase' }}>
+              Reffine JLR MENA Dashboard
             </span>
           </div>
-          <span style={{ fontSize:'0.48rem', fontWeight:500, letterSpacing:'0.18em', color:'var(--text-3)', textTransform:'uppercase' }}>
-            Reffine JLR MENA Dashboard
-          </span>
         </NavLink>
 
         <div className="nav-divider" />

@@ -155,6 +155,10 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .toggle-btn.on{background:var(--accent-dim);border-color:var(--accent-brd);}
 .toggle-btn.on::after{background:var(--accent);left:22px;}
 
+/* ── Reffine logo in nav ── */
+.reffine-logo{filter:brightness(0) invert(1);}
+.rf-light .reffine-logo{filter:none;}
+
 /* ── Reffine gradient text utility ── */
 .rf-gradient-text{background:var(--accent-grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
 
