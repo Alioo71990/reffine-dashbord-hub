@@ -10,7 +10,6 @@ const MEETING_OFFERS_LINK = 'https://teams.microsoft.com/l/meetup-join/19%3ameet
 
 const NAV_LINKS = [
   { to: '/translate', label: 'Translate' },
-  { to: '/translate-tool', label: 'Translate Tool' },
   { to: '/seo', label: 'SEO' },
   { to: '/offers', label: 'Offers' },
   { to: '/retailers', label: 'Retailers' },

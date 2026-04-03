@@ -3,7 +3,6 @@ import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useTheme, useAdmin } from './store'
 import { DashboardPage } from './pages/DashboardPage'
 import { TranslationPage } from './pages/TranslationPage'
-import { TranslationToolPage } from './pages/TranslationToolPage'
 import { SEOToolPage } from './pages/SEOToolPage'
 import { OfferGeneratorPage } from './pages/OfferGeneratorPage'
 import { RetailerLocatorPage } from './pages/RetailerLocatorPage'
@@ -24,7 +23,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<DashboardPage />} />
         <Route path="/translate" element={<TranslationPage />} />
-        <Route path="/translate-tool" element={<TranslationToolPage />} />
+        <Route path="/translate-tool" element={<Navigate to="/translate" replace />} />
         <Route path="/seo" element={<SEOToolPage />} />
         <Route path="/offers" element={<OfferGeneratorPage />} />
         <Route path="/retailers" element={<RetailerLocatorPage />} />

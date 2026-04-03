@@ -6,7 +6,6 @@ import { MeetingCountdown } from './MeetingCountdown'
 
 const NAV_LINKS = [
   { to: '/translate', label: 'TRANSLATE' },
-  { to: '/translate-tool', label: 'TRANSLATE TOOL' },
   { to: '/seo', label: 'SEO' },
   { to: '/offers', label: 'OFFERS' },
   { to: '/retailers', label: 'RETAILERS' },

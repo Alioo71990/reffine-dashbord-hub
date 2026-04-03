@@ -4,7 +4,6 @@ import { useTheme, useAuth, useAdmin } from './store'
 import { LoginPage } from './pages/LoginPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { TranslationPage } from './pages/TranslationPage'
-import { TranslationToolPage } from './pages/TranslationToolPage'
 import { SEOToolPage } from './pages/SEOToolPage'
 import { OfferGeneratorPage } from './pages/OfferGeneratorPage'
 import { RetailerLocatorPage } from './pages/RetailerLocatorPage'
@@ -59,7 +58,7 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
         <Route path="/translate" element={<ProtectedRoute><TranslationPage /></ProtectedRoute>} />
-        <Route path="/translate-tool" element={<ProtectedRoute><TranslationToolPage /></ProtectedRoute>} />
+        <Route path="/translate-tool" element={<Navigate to="/translate" replace />} />
         <Route path="/seo" element={<ProtectedRoute><SEOToolPage /></ProtectedRoute>} />
         <Route path="/offers" element={<ProtectedRoute><OfferGeneratorPage /></ProtectedRoute>} />
         <Route path="/retailers" element={<ProtectedRoute><RetailerLocatorPage /></ProtectedRoute>} />
