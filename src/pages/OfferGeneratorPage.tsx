@@ -47,6 +47,7 @@ function randSuffix() {
 // ─── URL Generator data ────────────────────────────────────────────────────────
 type BrandGroup = 'rr' | 'lr' | 'jag'
 
+// Detect brand group from nameplate string
 function detectBrandGroup(nameplate: string): BrandGroup {
   const n = (nameplate || '').toLowerCase()
   if (n.includes('range rover') || n.includes('evoque') || n.includes('velar')) return 'rr'
@@ -54,6 +55,7 @@ function detectBrandGroup(nameplate: string): BrandGroup {
   return 'jag'
 }
 
+// Nameplate slug for URL
 function nameplateSlug(nameplate: string): string {
   const n = (nameplate || '').toLowerCase().trim()
   if (n.includes('range rover sport')) return 'range-rover-sport'
@@ -66,6 +68,7 @@ function nameplateSlug(nameplate: string): string {
   return toSlug(nameplate)
 }
 
+// Path segment for LR (Defender/Discovery go in the path for some URL types)
 function lrPathSegment(nameplate: string): string {
   const s = nameplateSlug(nameplate)
   if (['defender','discovery','discovery-sport'].includes(s)) return s
@@ -149,12 +152,14 @@ function buildUrl(bg: BrandGroup, market: string, langCode: string, category: st
   return ''
 }
 
+// ─── Auto-detection helpers for URL Generator ────────────────────────────────
 function detectCategoryFromOfferType(offerType: string): string {
   const t = offerType.toLowerCase()
   if (/^1\)/.test(t.trim()) || t.includes('new vehicle')) return 'new'
   if (/^2\)/.test(t.trim()) || t.includes('approved used')) return 'used'
   if (/^3\)/.test(t.trim()) || t.includes('owner')) return 'owners'
   if (/^4\)/.test(t.trim()) || t.includes('collection')) return 'collections'
+  // Secondary keywords
   if (t.includes('aftersales') || t.includes('oil change') || t.includes('accessories') || t.includes('mobility') || t.includes('extended warranty') || t.includes('recall') || t.includes('connected service')) return 'owners'
   if (t.includes('buyback') || t.includes('trade-in') || t.includes('trade in')) return 'used'
   return 'new'
@@ -220,6 +225,8 @@ function detectMarketsFromStr(marketStr: string, bg: BrandGroup): Record<string,
 
 function UrlGenerator({ offer }: { offer: Offer }) {
   const bg = detectBrandGroup(offer.nameplate || offer.langs.EN.h1)
+
+  // Auto-detect from parsed DOCX data
   const initCat = detectCategoryFromOfferType(offer.offerType)
 
   const [selBg, setSelBg] = useState<BrandGroup>(bg)
@@ -227,6 +234,7 @@ function UrlGenerator({ offer }: { offer: Offer }) {
   const [selMarkets, setSelMarkets] = useState<Record<string, string[]>>(() => detectMarketsFromStr(offer.market, bg))
   const [copied, setCopied] = useState(false)
 
+  // These come directly from the parsed offer — anchor1 = Headline1-slug + 4 random letters, anchor2 = URL field
   const anchor1 = offer.anchor1
   const anchor2 = offer.urlSlug || offer.anchor2
   const np = offer.nameplate || offer.langs.EN.h1
@@ -251,6 +259,7 @@ function UrlGenerator({ offer }: { offer: Offer }) {
     setSelMarkets(all)
   }
 
+  // Re-detect markets when brand group changes
   const handleBgChange = (newBg: BrandGroup) => {
     setSelBg(newBg)
     const reDetected = detectMarketsFromStr(offer.market, newBg)
@@ -280,6 +289,7 @@ function UrlGenerator({ offer }: { offer: Offer }) {
         URL Generator
       </div>
 
+      {/* Config row */}
       <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:10, alignItems:'flex-end' }}>
         <div>
           <div style={{ fontSize:'0.5rem', fontWeight:700, letterSpacing:'.12em', textTransform:'uppercase', color:'var(--text-3)', marginBottom:3 }}>Brand Group</div>
@@ -298,6 +308,7 @@ function UrlGenerator({ offer }: { offer: Offer }) {
             <option value="collections">4) Collections</option>
           </select>
         </div>
+        {/* Read-only anchors sourced from the Word file */}
         <div style={{ fontSize:'0.58rem', fontFamily:'monospace', background:'var(--surface-3)', border:'1px solid var(--border)', borderRadius:4, padding:'4px 8px', color:'var(--accent)', whiteSpace:'nowrap' }}>
           suboffer: {anchor1 || '—'}
         </div>
@@ -306,6 +317,7 @@ function UrlGenerator({ offer }: { offer: Offer }) {
         </div>
       </div>
 
+      {/* Market / Language selector */}
       <div style={{ border:'1px solid var(--border)', borderRadius:6, overflow:'hidden', marginBottom:10 }}>
         <div style={{ padding:'6px 10px', background:'var(--surface)', display:'flex', alignItems:'center', gap:8, borderBottom:'1px solid var(--border)' }}>
           <span style={{ fontSize:'0.58rem', fontWeight:700, letterSpacing:'.1em', textTransform:'uppercase', color:'var(--text-3)', flex:1 }}>Select Markets & Languages</span>
@@ -335,6 +347,7 @@ function UrlGenerator({ offer }: { offer: Offer }) {
         </div>
       </div>
 
+      {/* Generated URLs */}
       {generatedUrls.length > 0 && (
         <div>
           <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
@@ -416,9 +429,12 @@ async function parseDocxMulti(buffer: ArrayBuffer): Promise<Offer[]> {
   const offers: Offer[] = []
 
   for (const mt of mainTables) {
+    // Strip invisible Unicode that .trim() misses (zero-width spaces etc)
     const cleanTxt = (raw: string) =>
       raw.replace(/[\u200b\u200c\u200d\u200e\u200f\u202a-\u202e\u2060-\u206f\ufeff]/g, '').trim()
 
+    // Collect paragraph texts before this table — also look inside preceding tables
+    // because Word templates often put URL/model year/displayed-on inside a metadata table
     const prevTexts: Array<{txt: string; lower: string}> = []
     for (let bi = mt.idx - 1; bi >= 0 && bi >= mt.idx - 120; bi--) {
       const block = blocks[bi]
@@ -427,6 +443,7 @@ async function parseDocxMulti(buffer: ArrayBuffer): Promise<Offer[]> {
         const txt = cleanTxt(raw)
         if (txt) prevTexts.unshift({ txt, lower: txt.toLowerCase() })
       } else if (block.type === 'tbl') {
+        // Extract all paragraph text from inside this preceding table
         const tblParas = Array.from(block.el.getElementsByTagNameNS(WNS, 'p'))
         const tblTexts: Array<{txt: string; lower: string}> = []
         for (const p of tblParas) {
@@ -434,201 +451,405 @@ async function parseDocxMulti(buffer: ArrayBuffer): Promise<Offer[]> {
           const txt = cleanTxt(raw)
           if (txt) tblTexts.push({ txt, lower: txt.toLowerCase() })
         }
+        // Insert them in forward order before the table's position
         prevTexts.unshift(...tblTexts)
       }
     }
 
-    let market='', brand='', nameplate='', modelYear='', offerType='', displayedOn='', urlSlug='', startId='', subcategory='', sequence='', feedTheme=''
-    for (const {lower} of prevTexts) {
-      if (!market && /(?:market|country)\s*:/.test(lower)) market = lower.split(':')[1].trim().replace(/^[-\s]+|[-\s]+$/g,'')
-      if (!brand && /(?:brand)\s*:/.test(lower)) brand = lower.split(':')[1].trim()
-      if (!nameplate && /(?:nameplate|model)\s*:/.test(lower)) nameplate = lower.split(':')[1].trim()
-      if (!modelYear && /(?:model\s*year|year)\s*:/.test(lower)) modelYear = lower.split(':')[1].trim()
-      if (!offerType && /(?:offer\s*type|type)\s*:/.test(lower)) offerType = lower.split(':')[1].trim()
-      if (!displayedOn && /(?:displayed\s*on|display)\s*:/.test(lower)) displayedOn = lower.split(':')[1].trim()
-      if (!urlSlug && /(?:url\s*slug|slug)\s*:/.test(lower)) urlSlug = lower.split(':')[1].trim()
-      if (!startId && /(?:start\s*id|id)\s*:/.test(lower)) startId = lower.split(':')[1].trim()
-      if (!subcategory && /(?:sub\s*category|subcategory)\s*:/.test(lower)) subcategory = lower.split(':')[1].trim()
-      if (!sequence && /(?:sequence|seq)\s*:/.test(lower)) sequence = lower.split(':')[1].trim()
-      if (!feedTheme && /(?:feed\s*theme|theme)\s*:/.test(lower)) feedTheme = lower.split(':')[1].trim()
+    let market='', brand='', nameplate='', modelYear='', offerType='', displayedOn='', urlSlug=''
+    const offerTypeLines: string[] = []
+    let inOfferType = false
+
+    // ── URL slug: scan ALL prevTexts for the first #slug pattern ─────────────
+    // Handles all Word layouts: separate paragraph, same paragraph, soft-return, etc.
+    for (const { txt } of prevTexts) {
+      const m = txt.match(/#([\w][\w-]{2,})/)
+      if (m) { urlSlug = m[1]; break }
     }
 
-    if (!market) {
-      for (const {txt} of prevTexts) {
-        if (!market && /(?:market|country)/i.test(txt) && txt.includes(':')) {
-          market = txt.split(':')[1].trim().replace(/^[-\s]+|[-\s]+$/g,'')
+    for (const { txt, lower } of prevTexts) {
+      if (!market && lower.startsWith('market:')) { market = txt.replace(/^market:\s*/i,'').trim(); inOfferType = false; continue }
+      if (!brand && lower.startsWith('brand:')) { brand = txt.replace(/^brand:\s*/i,'').trim(); inOfferType = false; continue }
+      if (!modelYear && lower.startsWith('model year:')) { modelYear = txt.replace(/^model year:\s*/i,'').trim(); inOfferType = false; continue }
+      if (!displayedOn && lower.startsWith('displayed on:')) { displayedOn = txt.replace(/^displayed on:\s*/i,'').trim(); inOfferType = false; continue }
+      if (lower.startsWith('url:')) { inOfferType = false; continue }
+
+      if (lower.includes('offer type')) {
+        inOfferType = true
+        const inline = txt.replace(/offer\s*type\s*:?\s*/i,'').trim()
+        if (inline) offerTypeLines.push(inline)
+        continue
+      }
+      if (inOfferType) {
+        if (/^(displayed on|model year|url|market:|brand:|landing page|reffine offer)/i.test(txt)) {
+          inOfferType = false
+        } else if (txt.length < 200) {
+          offerTypeLines.push(txt)
+        }
+      }
+      if (!nameplate && /^(range rover|defender|discovery|jaguar)/i.test(txt) && txt.length < 60 && !lower.includes(':')) {
+        nameplate = txt.trim()
+      }
+    }
+    offerType = offerTypeLines.join('\n')
+
+    if (!nameplate) {
+      const rows2 = wq(mt.el, 'tr')
+      for (const row of rows2.slice(1)) {
+        const cells = wq(row, 'tc')
+        if (!cells.length) continue
+        const label = cellAllText(cells[0]).toLowerCase()
+        if (/headline\s*1\b(?!\s*\()/.test(label) && cells[mt.colEN]) {
+          nameplate = cellFirstLine(cells[mt.colEN]).trim()
+          break
         }
       }
     }
 
-    const rows = wq(mt.el, 'tr').slice(1)
-    const langs: { EN: LangData; AR: LangData; FR: LangData } = { EN: emptyLang(), AR: emptyLang(), FR: emptyLang() }
-    let hasAR = false, hasFR = false
+    const ROW_DEFS: [keyof LangData, RegExp][] = [
+      ['h1',  /headline\s*1\b(?!\s*\()/i], ['h2',  /headline\s*2\b(?!\s*\()/i],
+      ['h3',  /headline\s*3a\b/i],         ['h3b', /headline\s*3b\b/i],
+      ['h4',  /headline\s*4\b(?!\s*\()/i], ['h5',  /headline\s*5\b(?!\s*\()/i],
+      ['cta', /^cta$/i],
+      ['sh1', /headline\s*1\s*\(drop/i],   ['sh2', /headline\s*2\s*\(drop/i],
+      ['sh3', /headline\s*3\s*\(drop/i],   ['desc',/offer\s*description/i]
+    ]
+    const rowCells: Partial<Record<keyof LangData, Element[]>> = {}
+    const rows = wq(mt.el, 'tr')
+    for (const row of rows.slice(1)) {
+      const cells = wq(row, 'tc')
+      if (!cells.length) continue
+      const label = cellAllText(cells[0]).toLowerCase().replace(/\s+/g,' ').trim()
+      for (const [key, pat] of ROW_DEFS) { if (!rowCells[key] && pat.test(label)) { rowCells[key] = cells; break } }
+    }
 
-    for (const tr of rows) {
-      const tcs = wq(tr, 'tc')
-      if (tcs.length < 3) continue
-      const enText = cellAllText(tcs[mt.colEN])
-      const arText = mt.colAR >= 0 ? cellAllText(tcs[mt.colAR]) : ''
-      const frText = mt.colFR >= 0 ? cellAllText(tcs[mt.colFR]) : ''
+    function getField(key: keyof LangData, col: number): string {
+      const cells = rowCells[key]; if (!cells || col < 0) return ''
+      return (cells[col]) ? cellFirstLine(cells[col]).trim() : ''
+    }
+    function getDesc(col: number): string {
+      const cells = rowCells['desc']; if (!cells || col < 0) return ''
+      return cells[col] ? cellAllText(cells[col]) : ''
+    }
 
-      const label = cellFirstLine(tcs[0]).toLowerCase().replace(/[:\s]+$/,'')
-      const keyMap: Record<string, keyof LangData> = {
-        'headline1':'h1','headline2':'h2','headline3':'h3','headline3b':'h3b',
-        'headline4':'h4','headline5':'h5','subheadline1':'sh1','subheadline2':'sh2',
-        'subheadline3':'sh3','cta':'cta','description':'desc','feed':'feed','feed2':'feed2',
-      }
-      const key = keyMap[label]
-      if (key) {
-        langs.EN[key] = enText
-        if (arText) { langs.AR[key] = arText; hasAR = true }
-        if (frText) { langs.FR[key] = frText; hasFR = true }
+    const buildLang = (col: number): LangData => {
+      const h3a = getField('h3', col)
+      const h3b = getField('h3b', col)
+      // Combine 3a + 3b with newline when both present
+      const h3 = h3a && h3b ? `${h3a}\n${h3b}` : (h3a || h3b)
+      const h2 = getField('h2', col)
+      const raw = getDesc(col)
+      return {
+        h1: getField('h1', col), h2, h3, h3b: '',
+        // Word's Headline 5 → App's Headline 4
+        h4: getField('h5', col), h5: '',
+        sh1: getField('sh1', col), sh2: getField('sh2', col), sh3: getField('sh3', col),
+        cta: getField('cta', col), desc: textToHtml(raw),
+        feed: h3 || h2, feed2: ''
       }
     }
 
-    if (!market && !offerType) continue
+    const enLang = buildLang(mt.colEN)
+    const arLang = mt.colAR >= 0 ? buildLang(mt.colAR) : emptyLang()
+    const frLang = mt.colFR >= 0 ? buildLang(mt.colFR) : emptyLang()
 
-    const anchor1 = toSlug(langs.EN.h1 || offerType) + '-' + randSuffix()
-    const anchor2 = urlSlug || ''
+    // Anchor 1: slug from Headline 1 (table cell) + 4 random lowercase letters
+    // Anchor 2: the URL field from the Word doc (e.g. #exclusive-service → exclusive-service)
+    const h1slug = toSlug(enLang.h1)  // use Headline 1 from table only
+    const anchor1 = h1slug ? `${h1slug}-${randSuffix()}` : ''
+    const anchor2 = urlSlug  // comes from URL: field in Word
 
     offers.push({
       id: `offer_${Date.now()}_${Math.random().toString(36).slice(2,6)}`,
-      market, brand, nameplate, modelYear, offerType, displayedOn, urlSlug,
-      anchor1, anchor2, subcategory, sequence, feedTheme,
+      market, brand, nameplate: nameplate || enLang.h1, modelYear, offerType, displayedOn, urlSlug,
+      anchor1, anchor2,
+      subcategory: offerType.replace(/^\d+\)\s*/,'').trim(),
+      sequence: String(offers.length * 10),
+      feedTheme: 'light',
       startDate: '', endDate: '', startId: '',
-      langs, hasAR, hasFR, collapsed: false
+      langs: { EN: enLang, AR: arLang, FR: frLang },
+      hasAR: !!(arLang.h1 || arLang.h3),
+      hasFR: !!(frLang.h1 || frLang.h3),
+      collapsed: false
     })
   }
 
   return offers
 }
 
-// ─── CSV Export ───────────────────────────────────────────────────────────────
-function exportAllCSV(offers: Offer[], fileName: string) {
-  const rows: string[][] = [['OFFER ID','Market','Brand','Nameplate','Model Year','Offer Type','Displayed On','URL Slug','Anchor 1','Anchor 2','Subcategory','Sequence','Feed Theme','Start Date','End Date','Start ID','Language','Headline1','Headline2','Headline3','Headline3b','Headline4','Headline5','SubHeadline1','SubHeadline2','SubHeadline3','CTA','Description','Feed','Feed2','HTML']]
-  for (const o of offers) {
-    const base = [o.id,o.market,o.brand,o.nameplate,o.modelYear,o.offerType,o.displayedOn,o.urlSlug,o.anchor1,o.anchor2,o.subcategory,o.sequence,o.feedTheme,o.startDate,o.endDate,o.startId]
-    for (const lang of ['EN','AR','FR'] as const) {
-      if (lang === 'AR' && !o.hasAR) continue
-      if (lang === 'FR' && !o.hasFR) continue
-      const l = o.langs[lang]
-      rows.push([...base, lang, l.h1,l.h2,l.h3,l.h3b,l.h4,l.h5,l.sh1,l.sh2,l.sh3,l.cta,l.desc,l.feed,l.feed2, textToHtml(l.desc)])
-    }
-  }
-  const csv = rows.map(r => r.map(c => `"${String(c||'').replace(/"/g,'""')}"`).join(',')).join('\n')
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a'); a.href = url; a.download = `${fileName}.csv`
-  document.body.appendChild(a); a.click(); document.body.removeChild(a)
-  setTimeout(() => URL.revokeObjectURL(url), 200)
+// ─── CSV export ───────────────────────────────────────────────────────────────
+const CSV_COLS = ['Id','Title','Created at','Updated at','Start date','End date','Headline 1','Headline 2','Headline 3','Headline 4','Headline 5','Subheadline 1','Subheadline 2','Subheadline 3','Description','Anchor 1','Anchor 2','Cta label','Subcategory','Vins','Sequence','Feed headline','Feed headline 2','Feed theme']
+
+function csvField(v: unknown, forceQuote = false): string {
+  const s = String(v ?? '')
+  return (forceQuote || /[,\n\r"]/.test(s)) ? `"${s.replace(/"/g,'""')}"` : s
 }
 
-// ─── Offer Card ───────────────────────────────────────────────────────────────
-function OfferCard({ offer, idx, onChange, onRemove }: { offer: Offer; idx: number; onChange: (id: string, p: Partial<Offer>) => void; onRemove: (id: string) => void }) {
-  const [editing, setEditing] = useState<Record<string, boolean>>({})
-  const toggle = (k: string) => setEditing(e => ({...e, [k]: !e[k]}))
-  const set = (k: string, v: string) => onChange(offer.id, { langs: { ...offer.langs, EN: { ...offer.langs.EN, [k]: v } } })
+function exportAllCSV(offers: Offer[], filename: string) {
+  const now = (() => { const d = new Date(); const p = (n:number) => String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())} +0100` })()
+  const today = new Date().toISOString().slice(0,10)
+  const lines: string[] = [CSV_COLS.map(c=>csvField(c)).join(',')]
+  let globalId = 1000
 
-  const fields: { key: keyof LangData; label: string; multiline?: boolean }[] = [
-    {key:'h1',label:'Headline 1'},{key:'h2',label:'Headline 2'},{key:'h3',label:'Headline 3'},
-    {key:'h3b',label:'Headline 3b'},{key:'h4',label:'Headline 4'},{key:'h5',label:'Headline 5'},
-    {key:'sh1',label:'Sub Headline 1'},{key:'sh2',label:'Sub Headline 2'},{key:'sh3',label:'Sub Headline 3'},
-    {key:'cta',label:'CTA'},{key:'desc',label:'Description',multiline:true},
-    {key:'feed',label:'Feed'},{key:'feed2',label:'Feed 2'},
-  ]
+  for (const offer of offers) {
+    const langList: Array<{lang: 'EN'|'AR'|'FR', data: LangData}> = [
+      {lang:'EN', data: offer.langs.EN},
+      ...(offer.hasAR ? [{lang:'AR' as const, data: offer.langs.AR}] : []),
+      ...(offer.hasFR ? [{lang:'FR' as const, data: offer.langs.FR}] : []),
+    ]
+    for (const {lang, data} of langList) {
+      const id = offer.startId ? parseInt(offer.startId) + langList.findIndex(l=>l.lang===lang) : globalId++
+      const title = `${(data.h1||offer.nameplate).trim()} ${lang}`
+      const row = [
+        id, title, now, now, offer.startDate, offer.endDate,
+        data.h1, data.h2, data.h3||data.h3b, data.h4, data.h5,
+        data.sh1, data.sh2, data.sh3,
+        data.desc,
+        offer.anchor1, offer.urlSlug || offer.anchor2, data.cta,
+        '', '', offer.sequence,
+        data.feed, data.feed2, offer.feedTheme
+      ]
+      lines.push(row.map((v,ci) => csvField(v, ci===14)).join(','))
+    }
+  }
+
+  const csv = lines.join('\r\n')
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'})
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob)
+  a.download = `${filename}-${today}.csv`
+  document.body.appendChild(a); a.click(); document.body.removeChild(a)
+}
+
+// ─── Live Offer Preview ───────────────────────────────────────────────────────
+function LiveOfferPreview({ d, nameplate, isRTL }: { d: LangData; nameplate: string; isRTL?: boolean }) {
+  const h5lower = (d.h5 || '').toLowerCase()
+  const isDisclaimer = h5lower.includes('vat') || h5lower.includes('tax') || h5lower.includes('terms') || h5lower.includes('inclusive')
 
   return (
-    <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, marginBottom:12, overflow:'hidden' }}>
-      {/* Card header */}
-      <div style={{ padding:'0.75rem 1rem', display:'flex', alignItems:'center', gap:10, borderBottom:'1px solid var(--border)', background:'var(--surface-2)' }}>
-        <button onClick={() => onChange(offer.id, { collapsed: !offer.collapsed })}
-          style={{ background:'none', border:'none', color:'var(--text-2)', cursor:'pointer', padding:0, display:'flex', alignItems:'center' }}>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ transform: offer.collapsed ? 'rotate(-90deg)' : 'none', transition:'transform .2s' }}><path d="m6 9 6 6 6-6"/></svg>
-        </button>
-        <span style={{ fontSize:'0.6rem', fontWeight:700, color:'var(--accent)', background:'var(--accent-dim)', border:'1px solid var(--accent-brd)', padding:'1px 6px', borderRadius:3 }}>#{idx+1}</span>
-        <span style={{ fontSize:'0.78rem', fontWeight:700, color:'var(--text)', flex:1 }}>{offer.market} — {offer.offerType || 'Untitled'}</span>
-        <span style={{ fontSize:'0.58rem', color:'var(--text-3)' }}>{offer.nameplate || ''} {offer.modelYear || ''}</span>
-        <button onClick={() => onRemove(offer.id)} style={{ background:'none', border:'none', color:'var(--text-3)', cursor:'pointer', fontSize:16, padding:'0 4px' }} title="Remove">×</button>
-      </div>
-
-      {!offer.collapsed && (
-        <div style={{ padding:'1rem' }}>
-          {/* Meta fields */}
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(180px,1fr))', gap:8, marginBottom:12 }}>
-            {[
-              {label:'Market',val:offer.market,key:'market' as const},
-              {label:'Brand',val:offer.brand,key:'brand' as const},
-              {label:'Nameplate',val:offer.nameplate,key:'nameplate' as const},
-              {label:'Model Year',val:offer.modelYear,key:'modelYear' as const},
-              {label:'Offer Type',val:offer.offerType,key:'offerType' as const},
-              {label:'Displayed On',val:offer.displayedOn,key:'displayedOn' as const},
-              {label:'URL Slug',val:offer.urlSlug,key:'urlSlug' as const},
-              {label:'Start ID',val:offer.startId,key:'startId' as const},
-              {label:'Subcategory',val:offer.subcategory,key:'subcategory' as const},
-              {label:'Sequence',val:offer.sequence,key:'sequence' as const},
-              {label:'Feed Theme',val:offer.feedTheme,key:'feedTheme' as const},
-            ].map(f => (
-              <div key={f.key}>
-                <div style={{ fontSize:'0.5rem', fontWeight:700, letterSpacing:'.12em', textTransform:'uppercase', color:'var(--text-3)', marginBottom:2 }}>{f.label}</div>
-                <input value={f.val} onChange={e => onChange(offer.id, {[f.key]: e.target.value})}
-                  style={{ width:'100%', background:'var(--surface-3)', border:'1px solid var(--border)', borderRadius:4, color:'var(--text)', fontFamily:'inherit', fontSize:'0.68rem', padding:'4px 6px', outline:'none' }} />
-              </div>
-            ))}
+    <div style={{
+      fontFamily: "'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif",
+      background: '#fff', border: '1px solid #e5e5e5', borderRadius: 6,
+      overflow: 'hidden', minHeight: 200, maxHeight: 450, overflowY: 'auto'
+    }}>
+      {/* Scoped CSS for bullet points matching live JLR site */}
+      <style>{`
+        .jlr-offer-preview ul { list-style-type: disc; padding-left: 22px; margin: 6px 0 10px; }
+        .jlr-offer-preview ul li { margin-bottom: 4px; font-size: 12.5px; line-height: 1.6; color: #333; }
+        .jlr-offer-preview p { margin: 0 0 10px; }
+        .jlr-offer-preview b, .jlr-offer-preview strong { font-weight: 700; }
+        .jlr-offer-preview sub { font-size: 10.5px; color: #888; display: block; margin-top: 6px; line-height: 1.5; font-style: italic; }
+      `}</style>
+      {/* Nameplate header */}
+      {(d.h1 || nameplate) && (
+        <div style={{ textAlign: 'center', paddingTop: 28, paddingBottom: 4 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#333', fontFamily: 'inherit' }}>
+            {d.h1 || nameplate}
           </div>
-
-          {/* Date fields */}
-          <div style={{ display:'flex', gap:8, marginBottom:12, alignItems:'center' }}>
-            <div>
-              <div style={{ fontSize:'0.5rem', fontWeight:700, letterSpacing:'.12em', textTransform:'uppercase', color:'var(--text-3)', marginBottom:2 }}>Start Date</div>
-              <input type="date" value={offer.startDate} onChange={e => onChange(offer.id, {startDate: e.target.value})}
-                style={{ background:'var(--surface-3)', border:'1px solid var(--border)', borderRadius:4, color:'var(--text)', fontFamily:'inherit', fontSize:'0.68rem', padding:'4px 6px', outline:'none', colorScheme:'dark' }} />
-            </div>
-            <div>
-              <div style={{ fontSize:'0.5rem', fontWeight:700, letterSpacing:'.12em', textTransform:'uppercase', color:'var(--text-3)', marginBottom:2 }}>End Date</div>
-              <input type="date" value={offer.endDate} onChange={e => onChange(offer.id, {endDate: e.target.value})}
-                style={{ background:'var(--surface-3)', border:'1px solid var(--border)', borderRadius:4, color:'var(--text)', fontFamily:'inherit', fontSize:'0.68rem', padding:'4px 6px', outline:'none', colorScheme:'dark' }} />
-            </div>
+        </div>
+      )}
+      {/* Offer title */}
+      {d.h2 && (
+        <div style={{ textAlign: 'center', padding: '4px 20px 16px' }}>
+          <div style={{ fontSize: 17, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#111', lineHeight: 1.25, fontFamily: 'inherit' }}>
+            {d.h2}
           </div>
-
-          {/* Language fields */}
-          {fields.map(f => (
-            <div key={f.key} style={{ marginBottom:8 }}>
-              <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:3 }}>
-                <span style={{ fontSize:'0.5rem', fontWeight:700, letterSpacing:'.12em', textTransform:'uppercase', color:'var(--text-3)' }}>{f.label}</span>
-                <button onClick={() => toggle(f.key)} style={{ fontSize:'0.55rem', color:'var(--accent)', background:'none', border:'none', cursor:'pointer', padding:0 }}>{editing[f.key] ? 'Hide' : 'Edit'}</button>
-              </div>
-              {editing[f.key] ? (
-                f.multiline ? (
-                  <textarea value={offer.langs.EN[f.key]} onChange={e => set(f.key, e.target.value)} rows={3}
-                    style={{ width:'100%', background:'var(--surface-3)', border:'1px solid var(--border)', borderRadius:4, color:'var(--text)', fontFamily:'inherit', fontSize:'0.68rem', padding:'6px 8px', outline:'none', resize:'vertical' }} />
-                ) : (
-                  <input value={offer.langs.EN[f.key]} onChange={e => set(f.key, e.target.value)}
-                    style={{ width:'100%', background:'var(--surface-3)', border:'1px solid var(--border)', borderRadius:4, color:'var(--text)', fontFamily:'inherit', fontSize:'0.68rem', padding:'4px 6px', outline:'none' }} />
-                )
-              ) : (
-                <div style={{ fontSize:'0.72rem', color:'var(--text-2)', background:'var(--surface-3)', border:'1px solid var(--border)', borderRadius:4, padding:'6px 8px', minHeight:20, whiteSpace:'pre-wrap' }}>
-                  {offer.langs.EN[f.key] || <span style={{color:'var(--text-3)'}}>—</span>}
-                </div>
-              )}
-            </div>
-          ))}
-
-          {/* URL Generator */}
-          <UrlGenerator offer={offer} />
+        </div>
+      )}
+      {/* Priority message (h3) */}
+      {d.h3 && (
+        <div style={{ textAlign: 'center', padding: '0 20px 12px' }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: '#444', fontFamily: 'inherit' }}>{d.h3}</div>
+          {d.h3b && <div style={{ fontSize: 12, color: '#555', marginTop: 2 }}>{d.h3b}</div>}
+        </div>
+      )}
+      {/* Divider */}
+      {(d.h1 || d.h2) && <div style={{ height: 1, background: '#e5e5e5', margin: '0 20px 16px' }} />}
+      {/* Description */}
+      {d.desc && (
+        <div className="jlr-offer-preview" dir={isRTL ? 'rtl' : 'ltr'} style={{ padding: '0 20px 16px', fontSize: 12.5, lineHeight: 1.7, color: '#333', fontFamily: 'inherit' }}
+          dangerouslySetInnerHTML={{ __html: d.desc }} />
+      )}
+      {/* Headline 4 */}
+      {d.h4 && (
+        <div style={{ padding: '0 20px 10px', fontSize: 12, color: '#555', fontFamily: 'inherit' }}>{d.h4}</div>
+      )}
+      {/* H5 / Terms */}
+      {d.h5 && (
+        <div style={{ padding: '0 20px 16px', fontSize: isDisclaimer ? 10.5 : 12, color: isDisclaimer ? '#888' : '#555', fontStyle: isDisclaimer ? 'italic' : 'normal', fontFamily: 'inherit', lineHeight: 1.5 }}>
+          {isDisclaimer ? `- ${d.h5}` : d.h5}
+        </div>
+      )}
+      {/* CTA */}
+      {d.cta && (
+        <div style={{ padding: '4px 20px 24px', textAlign: 'center' }}>
+          <div style={{ display: 'inline-block', background: '#1a1a1a', color: '#fff', fontSize: 11, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', padding: '10px 24px', borderRadius: 2, fontFamily: 'inherit' }}>
+            {d.cta}
+          </div>
         </div>
       )}
     </div>
   )
 }
 
-// ─── Offer Studio (original page content) ─────────────────────────────────────
+// ─── OfferCard ────────────────────────────────────────────────────────────────
+function OfferCard({ offer, idx, onChange, onRemove }: {
+  offer: Offer; idx: number
+  onChange: (id: string, patch: Partial<Offer>) => void
+  onRemove: (id: string) => void
+}) {
+  const [activeLang, setActiveLang] = useState<'EN'|'AR'|'FR'>('EN')
+  const [showUrlGen, setShowUrlGen] = useState(false)
+
+  function set(patch: Partial<Offer>) { onChange(offer.id, patch) }
+  function setLang(lang: 'EN'|'AR'|'FR', patch: Partial<LangData>) {
+    onChange(offer.id, { langs: { ...offer.langs, [lang]: { ...offer.langs[lang], ...patch } } })
+  }
+
+  const iS: React.CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--border)', borderRadius:5, color:'var(--text)', fontFamily:"'Inter',sans-serif", fontSize:'0.7rem', padding:'0.45rem 0.7rem', outline:'none' }
+
+  const langs: Array<'EN'|'AR'|'FR'> = ['EN', ...(offer.hasAR?['AR' as const]:[]), ...(offer.hasFR?['FR' as const]:[])]
+
+
+  return (
+    <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, overflow:'hidden', marginBottom:14 }}>
+      {/* Header */}
+      <div style={{ background:'var(--surface-2)', padding:'10px 16px', display:'flex', alignItems:'center', gap:10, cursor:'pointer' }}
+        onClick={() => set({ collapsed: !offer.collapsed })}>
+        <div style={{ width:22, height:22, borderRadius:6, background:'var(--accent-grad)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:'0.6rem', fontWeight:700, color:'#fff' }}>{idx+1}</div>
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ fontSize:'0.78rem', fontWeight:700, color:'var(--text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+            {offer.langs.EN.h1 || offer.nameplate || `Offer ${idx+1}`}
+          </div>
+          <div style={{ fontSize:'0.58rem', color:'var(--text-3)', display:'flex', gap:8, marginTop:1 }}>
+            {offer.langs.EN.h2 && <span>📋 {offer.langs.EN.h2.slice(0,40)}{offer.langs.EN.h2.length>40?'…':''}</span>}
+            {offer.langs.EN.h3 && <span>💰 {offer.langs.EN.h3}</span>}
+          </div>
+        </div>
+        {langs.map(l => <span key={l} style={{ fontSize:'0.6rem', fontWeight:700, background: l==='EN'?'rgba(91,141,238,.15)':l==='AR'?'rgba(233,30,140,.15)':'rgba(34,197,94,.15)', border:`1px solid ${l==='EN'?'rgba(91,141,238,.35)':l==='AR'?'rgba(233,30,140,.35)':'rgba(34,197,94,.35)'}`, color: l==='EN'?'#5b8dee':l==='AR'?'var(--accent)':'var(--green)', borderRadius:4, padding:'2px 7px' }}>{l}</span>)}
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" strokeWidth="2.5" style={{ transform: offer.collapsed?'none':'rotate(180deg)', transition:'transform .2s', flexShrink:0 }}>
+          <path d="m6 9 6 6 6-6"/>
+        </svg>
+        <button onClick={e=>{e.stopPropagation();if(confirm(`Remove "${offer.langs.EN.h1||'this offer'}\"?`))onRemove(offer.id)}}
+          style={{ background:'none', border:'none', color:'var(--red)', cursor:'pointer', fontSize:16, lineHeight:1, flexShrink:0, padding:'2px 4px' }}>×</button>
+      </div>
+
+      {!offer.collapsed && (
+        <div style={{ padding:'1.25rem' }}>
+          {/* Anchor / ID / Date row */}
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(155px,1fr))', gap:8, marginBottom:14, paddingBottom:14, borderBottom:'1px solid var(--border)' }}>
+            <div>
+              <div style={{ fontSize:'0.5rem', fontWeight:700, letterSpacing:'.14em', textTransform:'uppercase', color:'var(--text-3)', marginBottom:3 }}>Anchor 1 · Model Slug</div>
+              <input style={{ ...iS, fontFamily:'monospace', fontSize:'0.68rem' }} value={offer.anchor1} onChange={e=>set({anchor1:e.target.value})} placeholder="range-rover-sport-wcdm" />
+            </div>
+            <div>
+              <div style={{ fontSize:'0.5rem', fontWeight:700, letterSpacing:'.14em', textTransform:'uppercase', color:'var(--text-3)', marginBottom:3 }}>Anchor 2 · Offer Slug</div>
+              <input style={{ ...iS, fontFamily:'monospace', fontSize:'0.68rem' }} value={offer.anchor2} onChange={e=>set({anchor2:e.target.value})} placeholder="exclusive-offer" />
+            </div>
+            <div>
+              <div style={{ fontSize:'0.5rem', fontWeight:700, letterSpacing:'.14em', textTransform:'uppercase', color:'var(--text-3)', marginBottom:3 }}>Sequence</div>
+              <input style={iS} value={offer.sequence} onChange={e=>set({sequence:e.target.value})} placeholder="0" />
+            </div>
+            <div>
+              <div style={{ fontSize:'0.5rem', fontWeight:700, letterSpacing:'.14em', textTransform:'uppercase', color:'var(--text-3)', marginBottom:3 }}>Starting ID</div>
+              <input style={iS} value={offer.startId} onChange={e=>set({startId:e.target.value})} placeholder="1005" />
+            </div>
+            <div>
+              <div style={{ fontSize:'0.5rem', fontWeight:700, letterSpacing:'.14em', textTransform:'uppercase', color:'var(--text-3)', marginBottom:3 }}>Start Date</div>
+              <input type="date" style={{ ...iS, colorScheme:'dark' }} value={offer.startDate} onChange={e=>set({startDate:e.target.value})} />
+            </div>
+            <div>
+              <div style={{ fontSize:'0.5rem', fontWeight:700, letterSpacing:'.14em', textTransform:'uppercase', color:'var(--text-3)', marginBottom:3 }}>End Date</div>
+              <input type="date" style={{ ...iS, colorScheme:'dark' }} value={offer.endDate} onChange={e=>set({endDate:e.target.value})} />
+            </div>
+            <div>
+              <div style={{ fontSize:'0.5rem', fontWeight:700, letterSpacing:'.14em', textTransform:'uppercase', color:'var(--text-3)', marginBottom:3 }}>Feed Theme</div>
+              <select style={iS} value={offer.feedTheme} onChange={e=>set({feedTheme:e.target.value})}>
+                <option>light</option><option>dark</option>
+              </select>
+            </div>
+          </div>
+
+          {/* URL Generator toggle */}
+          <button onClick={() => setShowUrlGen(p => !p)}
+            style={{ marginBottom:14, display:'flex', alignItems:'center', gap:6, background:'none', border:'1px solid var(--border)', borderRadius:6, color:'var(--text-2)', cursor:'pointer', fontFamily:'inherit', fontSize:'0.68rem', fontWeight:600, padding:'6px 12px', transition:'all .15s' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor='var(--accent-brd)'; (e.currentTarget as HTMLElement).style.color='var(--accent)' }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor='var(--border)'; (e.currentTarget as HTMLElement).style.color='var(--text-2)' }}>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+            {showUrlGen ? 'Hide URL Generator' : '🔗 Generate URLs'}
+          </button>
+          {showUrlGen && <UrlGenerator offer={offer} />}
+
+          {/* Lang tabs */}
+          <div style={{ display:'flex', gap:4, marginBottom:14, marginTop:14 }}>
+            {langs.map(l => (
+              <button key={l} onClick={() => setActiveLang(l)}
+                style={{ padding:'5px 16px', borderRadius:6, border:'1px solid', cursor:'pointer', fontFamily:'inherit', fontSize:'0.72rem', fontWeight:700, letterSpacing:'0.06em', transition:'all .15s',
+                  background: activeLang===l ? 'var(--accent-grad)' : 'var(--surface-2)',
+                  borderColor: activeLang===l ? 'transparent' : 'var(--border)',
+                  color: activeLang===l ? '#fff' : 'var(--text-2)' }}>{l}</button>
+            ))}
+            {!offer.hasAR && <button onClick={()=>set({hasAR:true})} style={{ padding:'5px 12px', borderRadius:6, border:'1px dashed var(--border)', cursor:'pointer', fontFamily:'inherit', fontSize:'0.68rem', color:'var(--text-3)', background:'none' }}>+ AR</button>}
+            {!offer.hasFR && <button onClick={()=>set({hasFR:true})} style={{ padding:'5px 12px', borderRadius:6, border:'1px dashed var(--border)', cursor:'pointer', fontFamily:'inherit', fontSize:'0.68rem', color:'var(--text-3)', background:'none' }}>+ FR</button>}
+          </div>
+
+          {/* Fields for active language */}
+          {langs.filter(l=>l===activeLang).map(lang => {
+            const d = offer.langs[lang]
+            const isRTL = lang === 'AR'
+            return (
+              <div key={lang} style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
+                <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+                    {([
+                      {f:'h1', l:'Headline 1 · Nameplate'},
+                      {f:'h2', l:'Headline 2 · Offer Title'},
+                      {f:'h3', l:'Headline 3a · Priority Msg (max 25)'},
+                      {f:'h3b',l:'Headline 3b · Cont. (optional)'},
+                      {f:'h4', l:'Headline 4 (optional)'},
+                      {f:'h5', l:'Headline 5 · Terms (optional)'},
+                      {f:'sh1',l:'Subheadline 1 (dropdown)'},
+                      {f:'sh2',l:'Subheadline 2 (dropdown)'},
+                      {f:'sh3',l:'Subheadline 3 (dropdown)'},
+                      {f:'cta',l:'CTA Label'},
+                      {f:'feed',l:'Feed Headline'},
+                      {f:'feed2',l:'Feed Headline 2'},
+                    ] as Array<{f: keyof LangData, l: string}>).map(({f,l}) => (
+                      <div key={f}>
+                        <div style={{ fontSize:'0.5rem', fontWeight:700, letterSpacing:'.12em', textTransform:'uppercase', color:'var(--text-3)', marginBottom:3 }}>{l}</div>
+                        <input style={{ ...iS, fontSize:'0.7rem' }} dir={isRTL?'rtl':'ltr'} value={d[f]||''} onChange={e=>setLang(lang,{[f]:e.target.value})} />
+                        {f==='h3' && d[f] && <div style={{ fontSize:'0.5rem', color: d[f].length>25?'var(--red)':'var(--text-3)', marginTop:2 }}>{d[f].length}/25 chars</div>}
+                      </div>
+                    ))}
+                  </div>
+                  <div>
+                    <div style={{ fontSize:'0.5rem', fontWeight:700, letterSpacing:'.12em', textTransform:'uppercase', color:'var(--text-3)', marginBottom:3 }}>Description HTML</div>
+                    <textarea dir={isRTL?'rtl':'ltr'} value={d.desc||''} onChange={e=>setLang(lang,{desc:e.target.value})}
+                      style={{ width:'100%', background:'var(--surface-3)', border:'1px solid var(--border)', borderRadius:5, color:'var(--text)', fontFamily:'monospace', fontSize:'0.65rem', padding:'0.5rem', outline:'none', resize:'vertical', minHeight:150 }} />
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize:'0.6rem', fontWeight:700, letterSpacing:'.1em', textTransform:'uppercase', color:'var(--text-3)', marginBottom:8, display:'flex', alignItems:'center', gap:6 }}>
+                    <span style={{ width:6, height:6, borderRadius:'50%', background:'var(--accent)' }} />Live Offer Preview
+                  </div>
+                  <LiveOfferPreview d={d} nameplate={offer.nameplate || offer.langs.EN.h1} isRTL={isRTL} />
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Offer Studio (original page, renamed) ────────────────────────────────────
 function OfferStudio() {
   const [offers, setOffers] = useState<Offer[]>([])
   const [fileName, setFileName] = useState('')
-  const [globalStart, setGlobalStart] = useState('')
-  const [globalEnd, setGlobalEnd] = useState('')
   const [log, setLog] = useState('')
   const [logType, setLogType] = useState<'ok'|'err'|'info'>('info')
+  const [globalStart, setGlobalStart] = useState('')
+  const [globalEnd, setGlobalEnd] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
 
   function setL(m: string, t: 'ok'|'err'|'info') { setLog(m); setLogType(t) }
@@ -659,59 +880,63 @@ function OfferStudio() {
   const totalRows = offers.reduce((s,o)=>s+(o.hasAR?2:1)+(o.hasFR?1:0),0)
 
   return (
-    <div>
-      {/* Header */}
-      <div style={{ display:'flex', alignItems:'flex-end', gap:16, paddingBottom:16, borderBottom:'1px solid var(--border)', marginBottom:16 }}>
-        <div style={{ width:44, height:44, borderRadius:8, background:'var(--accent-dim)', border:'1px solid var(--accent-brd)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="var(--accent)" strokeWidth="1.5"><rect x="2" y="3" width="11" height="14" rx="1.5"/><path d="M5 7h5M5 10h5M5 13h3"/><path d="M14 6l4 4-4 4"/></svg>
-        </div>
-        <div>
-          <h1 style={{ fontWeight:800, fontSize:20, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--text)' }}>Offer Studio</h1>
-          <p style={{ fontSize:11, color:'var(--text-3)', marginTop:3 }}>Parse Word templates · Multiple offers from one file · Export CMS-ready CSV</p>
-        </div>
-      </div>
-
-      {/* Import bar */}
-      <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:'1rem 1.25rem', marginBottom:14 }}>
-        <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
-          <label style={{ display:'inline-flex', alignItems:'center', gap:8, height:36, padding:'0 14px', borderRadius:7, border:'1px solid var(--border)', background:'var(--surface-2)', color:'var(--text)', fontSize:'0.72rem', fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
-            <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor" opacity=".8"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708l3-3z"/></svg>
-            Choose .docx
-            <input ref={fileRef} type="file" accept=".docx" style={{ display:'none' }} onChange={e => { const f=e.target.files?.[0]; if(f) handleFile(f) }} />
-          </label>
-
-          <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-            <div style={{ fontSize:'0.56rem', fontWeight:700, letterSpacing:'.12em', textTransform:'uppercase', color:'var(--text-3)' }}>Global Dates:</div>
-            <input type="date" value={globalStart} onChange={e=>setGlobalStart(e.target.value)} style={{ padding:'5px 8px', background:'var(--surface-2)', border:'1px solid var(--border)', borderRadius:5, color:'var(--text)', fontFamily:'inherit', fontSize:'0.68rem', outline:'none', colorScheme:'dark' }} />
-            <span style={{ color:'var(--text-3)', fontSize:11 }}>→</span>
-            <input type="date" value={globalEnd} onChange={e=>setGlobalEnd(e.target.value)} style={{ padding:'5px 8px', background:'var(--surface-2)', border:'1px solid var(--border)', borderRadius:5, color:'var(--text)', fontFamily:'inherit', fontSize:'0.68rem', outline:'none', colorScheme:'dark' }} />
-            {offers.length>0 && <button onClick={applyGlobalDates} style={{ padding:'5px 10px', borderRadius:5, border:'1px solid var(--border)', background:'var(--surface-2)', color:'var(--text-2)', fontFamily:'inherit', fontSize:'0.65rem', cursor:'pointer' }}>Apply to all</button>}
+    <div style={{ paddingTop:60 }}>
+      <TopNav />
+      <div style={{ maxWidth:1300, margin:'0 auto', padding:'1.75rem 1.5rem 4rem' }}>
+        {/* Header */}
+        <div style={{ display:'flex', alignItems:'flex-end', gap:16, paddingBottom:16, borderBottom:'1px solid var(--border)', marginBottom:16 }}>
+          <div style={{ width:44, height:44, borderRadius:8, background:'var(--accent-dim)', border:'1px solid var(--accent-brd)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="var(--accent)" strokeWidth="1.5"><rect x="2" y="3" width="11" height="14" rx="1.5"/><path d="M5 7h5M5 10h5M5 13h3"/><path d="M14 6l4 4-4 4"/></svg>
           </div>
-
-          <div style={{ flex:1 }} />
-
-          {offers.length > 0 && <>
-            <button onClick={collapseAll} style={{ padding:'5px 10px', borderRadius:5, border:'1px solid var(--border)', background:'var(--surface-2)', color:'var(--text-2)', fontFamily:'inherit', fontSize:'0.65rem', cursor:'pointer' }}>Collapse All</button>
-            <button onClick={expandAll} style={{ padding:'5px 10px', borderRadius:5, border:'1px solid var(--border)', background:'var(--surface-2)', color:'var(--text-2)', fontFamily:'inherit', fontSize:'0.65rem', cursor:'pointer' }}>Expand All</button>
-            <button className="btn-primary" onClick={() => exportAllCSV(offers, fileName||'offers')}>
-              ↓ Export CSV ({totalRows} rows)
-            </button>
-          </>}
+          <div>
+            <h1 style={{ fontWeight:800, fontSize:20, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--text)' }}>Offer Studio</h1>
+            <p style={{ fontSize:11, color:'var(--text-3)', marginTop:3 }}>Parse Word templates · Multiple offers from one file · Export CMS-ready CSV</p>
+          </div>
         </div>
-        {log && <div style={{ fontSize:'0.65rem', marginTop:8, color: logType==='ok'?'var(--green)': logType==='err'?'var(--red)':'var(--orange)' }}>{log}</div>}
+
+        {/* Import bar */}
+        <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:'1rem 1.25rem', marginBottom:14 }}>
+          <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
+            <label style={{ display:'inline-flex', alignItems:'center', gap:8, height:36, padding:'0 14px', borderRadius:7, border:'1px solid var(--border)', background:'var(--surface-2)', color:'var(--text)', fontSize:'0.72rem', fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor" opacity=".8"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708l3-3z"/></svg>
+              Choose .docx
+              <input ref={fileRef} type="file" accept=".docx" style={{ display:'none' }} onChange={e => { const f=e.target.files?.[0]; if(f) handleFile(f) }} />
+            </label>
+
+            <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+              <div style={{ fontSize:'0.56rem', fontWeight:700, letterSpacing:'.12em', textTransform:'uppercase', color:'var(--text-3)' }}>Global Dates:</div>
+              <input type="date" value={globalStart} onChange={e=>setGlobalStart(e.target.value)} style={{ padding:'5px 8px', background:'var(--surface-2)', border:'1px solid var(--border)', borderRadius:5, color:'var(--text)', fontFamily:'inherit', fontSize:'0.68rem', outline:'none', colorScheme:'dark' }} />
+              <span style={{ color:'var(--text-3)', fontSize:11 }}>→</span>
+              <input type="date" value={globalEnd} onChange={e=>setGlobalEnd(e.target.value)} style={{ padding:'5px 8px', background:'var(--surface-2)', border:'1px solid var(--border)', borderRadius:5, color:'var(--text)', fontFamily:'inherit', fontSize:'0.68rem', outline:'none', colorScheme:'dark' }} />
+              {offers.length>0 && <button onClick={applyGlobalDates} style={{ padding:'5px 10px', borderRadius:5, border:'1px solid var(--border)', background:'var(--surface-2)', color:'var(--text-2)', fontFamily:'inherit', fontSize:'0.65rem', cursor:'pointer' }}>Apply to all</button>}
+            </div>
+
+            <div style={{ flex:1 }} />
+
+            {offers.length > 0 && <>
+              <button onClick={collapseAll} style={{ padding:'5px 10px', borderRadius:5, border:'1px solid var(--border)', background:'var(--surface-2)', color:'var(--text-2)', fontFamily:'inherit', fontSize:'0.65rem', cursor:'pointer' }}>Collapse All</button>
+              <button onClick={expandAll} style={{ padding:'5px 10px', borderRadius:5, border:'1px solid var(--border)', background:'var(--surface-2)', color:'var(--text-2)', fontFamily:'inherit', fontSize:'0.65rem', cursor:'pointer' }}>Expand All</button>
+              <button className="btn-primary" onClick={() => exportAllCSV(offers, fileName||'offers')}>
+                ↓ Export CSV ({totalRows} rows)
+              </button>
+            </>}
+          </div>
+          {log && <div style={{ fontSize:'0.65rem', marginTop:8, color: logType==='ok'?'var(--green)': logType==='err'?'var(--red)':'var(--orange)' }}>{log}</div>}
+        </div>
+
+        {/* Offer cards */}
+        {offers.length === 0 && (
+          <div style={{ textAlign:'center', padding:'3rem 1rem', color:'var(--text-3)', fontSize:'0.8rem' }}>
+            <div style={{ fontSize:42, marginBottom:12 }}>📄</div>
+            Import a .docx Word offer template to begin.<br/>
+            <span style={{ fontSize:'0.68rem' }}>Multiple offers per file are automatically detected and shown as separate cards.</span>
+          </div>
+        )}
+        {offers.map((offer, i) => (
+          <OfferCard key={offer.id} offer={offer} idx={i} onChange={updateOffer} onRemove={removeOffer} />
+        ))}
       </div>
-
-      {/* Offer cards */}
-      {offers.length === 0 && (
-        <div style={{ textAlign:'center', padding:'3rem 1rem', color:'var(--text-3)', fontSize:'0.8rem' }}>
-          <div style={{ fontSize:42, marginBottom:12 }}>📄</div>
-          Import a .docx Word offer template to begin.<br/>
-          <span style={{ fontSize:'0.68rem' }}>Multiple offers per file are automatically detected and shown as separate cards.</span>
-        </div>
-      )}
-      {offers.map((offer, i) => (
-        <OfferCard key={offer.id} offer={offer} idx={i} onChange={updateOffer} onRemove={removeOffer} />
-      ))}
+      <Footer />
     </div>
   )
 }
@@ -784,7 +1009,6 @@ function OfferStatusTab() {
       const parsed = parseCSV(raw)
       if (!parsed || parsed.length < 2) { setRows([]); return }
 
-      // Find header row
       let headerIdx = 0
       for (let i = 0; i < Math.min(parsed.length, 5); i++) {
         if (parsed[i].join('').toLowerCase().includes('offer')) { headerIdx = i; break }
@@ -825,7 +1049,6 @@ function OfferStatusTab() {
 
   useEffect(() => { load() }, [csvUrl])
 
-  // Filtered + sorted
   const filtered = rows.filter(r => {
     const okSearch = !search || [r.offerId, r.market, r.offerType, r.status].join(' ').toLowerCase().includes(search)
     const okStatus = !fStatus || r.status === fStatus
@@ -861,7 +1084,6 @@ function OfferStatusTab() {
 
   return (
     <div style={{ height:'100%', display:'flex', flexDirection:'column' }}>
-      {/* Header */}
       <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap', paddingBottom:8, borderBottom:'1px solid var(--border)', marginBottom:8, flexShrink:0 }}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>
         <span style={{ fontSize:'.72rem', fontWeight:700, letterSpacing:'.1em', textTransform:'uppercase', color:'var(--text)' }}>Offers Status</span>
@@ -875,7 +1097,6 @@ function OfferStatusTab() {
         </button>
       </div>
 
-      {/* Filters */}
       <div style={{ display:'flex', gap:6, alignItems:'center', marginBottom:8, flexShrink:0, flexWrap:'wrap' }}>
         <div style={{ flex:1, minWidth:130, position:'relative' }}>
           <svg style={{ position:'absolute', left:7, top:'50%', transform:'translateY(-50%)', pointerEvents:'none', color:'var(--text-3)' }} width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
@@ -905,7 +1126,6 @@ function OfferStatusTab() {
         <span style={{ fontSize:'.6rem', color:'var(--text-3)', whiteSpace:'nowrap' }}>{filtered.length} of {rows.length}</span>
       </div>
 
-      {/* Table */}
       <div style={{ flex:1, minHeight:0, overflowY:'auto', border:'1px solid var(--border)', borderRadius:6 }}>
         {loading && !rows.length ? (
           <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:100, gap:8, color:'var(--text-3)', fontSize:'.72rem' }}>
@@ -1007,7 +1227,7 @@ export function OfferGeneratorPage() {
   const [tab, setTab] = useState<'studio' | 'status'>('studio')
   const { theme } = useTheme()
   const isDark = theme === 'dark'
-  const TOP = 60 + 41 // nav + tab bar
+  const TOP = 60 + 41
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)', display: 'flex', flexDirection: 'column' }}>
